@@ -1,0 +1,4 @@
+statics/firebase_key.json
+generated_files/
+__pycache__/
+**/__pycache__/
