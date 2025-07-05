@@ -1,9 +1,9 @@
 # SmartTrash – Système de Poubelle Intelligente
 
 Ce projet propose une solution complète de gestion intelligente des déchets, composée de trois parties principales :  
-- **Électronique embarquée (ESP32)**
-- **Serveur/API (FastAPI + MongoDB + Firebase RTDB)**
-- **Application mobile (Flutter)**
+- **[Électronique embarquée (ESP32)](https://github.com/walid-moussa55/SmartTrash/tree/main/smartTrash_arduino)**
+- **[Serveur/API (FastAPI + MongoDB + Firebase RTDB)](https://github.com/walid-moussa55/SmartTrash/tree/main/smartTrash_API)**
+- **[Application mobile (Flutter)](https://github.com/walid-moussa55/SmartTrash/tree/main/smartTrash_flutter/smart_trash)**
 
 Il permet de mesurer et de surveiller en temps réel le niveau de remplissage, le poids, l’humidité, la température, la présence d’eau et de gaz dans la poubelle, avec affichage local et remontée des données vers une interface utilisateur.
 
@@ -111,8 +111,8 @@ Content-Type: application/json
 - [Provider](https://pub.dev/packages/provider) ou [Bloc](https://bloclibrary.dev/) pour la gestion d’état
 
 ### Fichiers principaux :  
-- `smartTrash_flutter/` (dossier de l’application Flutter)
-- `smartTrash_flutter/lib/` (sources Dart)
+- `smartTrash_flutter/smart_trash/` (dossier de l’application Flutter)
+- `smartTrash_flutter/smart_trash/lib/` (sources Dart)
 
 ---
 
@@ -159,6 +159,12 @@ Content-Type: application/json
 
 ---
 
+## Auteur
+
+Projet réalisé par WAM Development
+
+---
+
 ## Liens utiles
 
 - [Documentation officielle ESP32 (Espressif)](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/)
@@ -169,9 +175,10 @@ Content-Type: application/json
 - [Google Maps Flutter](https://pub.dev/packages/google_maps_flutter)
 - [Forum Arduino France](https://forum.arduino.cc/c/international/francais/33)
 - [Exemples de requêtes HTTPClient Arduino](https://randomnerdtutorials.com/esp32-http-get-post-arduino/)
+- [Dépôt du projet SmartTrash](https://github.com/walid-moussa55/SmartTrash/)
 
 ---
 
-## Auteur
+**SmartTrash** : Optimisez la gestion urbaine des déchets grâce à la donnée et à l’intelligence artificielle !
 
-Projet réalisé par WAM Development
+---
