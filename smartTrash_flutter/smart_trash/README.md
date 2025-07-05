@@ -122,7 +122,7 @@ SmartTrash est une application Flutter complète de gestion intelligente des dé
 - [Documentation Firebase pour Flutter](https://firebase.flutter.dev/docs/overview)
 - [Documentation FastAPI](https://fastapi.tiangolo.com/)
 - [Documentation Flask](https://flask.palletsprojects.com/)
-- [Dépôt du projet SmartTrash](https://github.com/votre-utilisateur/smart_trash) <!-- Remplacez par votre vrai lien GitHub -->
+- [Dépôt du projet SmartTrash](https://github.com/walid-moussa55/SmartTrash/smartTrash_flutter/smart_trash) <!-- Remplacez par votre vrai lien GitHub -->
 
 ---
 
