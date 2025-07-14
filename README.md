@@ -161,8 +161,14 @@ Content-Type: application/json
 
 ## Auteur
 
-Projet réalisé par WAM Development
-
+Projet réalisé par:
+- [WAM](https://github.com/walid-moussa55)
+- [Momoun Ouhda](https://github.com/mimounouhd)
+- [Yassine Boujnan]()
+- [Mohamed Belghiti Alaoui]()
+- [Meryem Echbab]()
+- [Bouchra Manoussi]()
+- [Raja Bena]()
 ---
 
 ## Liens utiles
