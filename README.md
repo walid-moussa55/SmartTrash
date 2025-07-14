@@ -168,7 +168,7 @@ Projet réalisé par:
 - [Mohamed Belghiti Alaoui]()
 - [Meryem Echbab]()
 - [Bouchra Manoussi]()
-- [Raja Bena]()
+- [Raja Benaddi]()
 ---
 
 ## Liens utiles
