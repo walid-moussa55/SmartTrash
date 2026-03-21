@@ -7,11 +7,11 @@ import 'package:firebase_core/firebase_core.dart';
 //   2. App Check is enabled
 //   3. HTTP referrer restrictions are set in the Google Cloud Console
 const firebaseOptionsWeb = FirebaseOptions(
-  apiKey: "AIzaSyDLhxd8pKAdHoN0k1667JOhOwVFn2GBYlU",
-  authDomain: "smarttrash-e2204.firebaseapp.com",
-  databaseURL: "https://smarttrash-e2204-default-rtdb.firebaseio.com",
-  projectId: "smarttrash-e2204",
-  storageBucket: "smarttrash-e2204.firebasestorage.app",
-  messagingSenderId: "163524489825",
-  appId: "1:163524489825:web:46e6d56b9f4ec8ef7a7020"
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
 );
