@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+firebase-admin
+pandas
+pymongo
+python-dotenv
+pydantic
+jinja2
+reportlab
+aiofiles
+httpx
+torch
+torchvision
+scikit-learn
+joblib
+numpy
+pillow

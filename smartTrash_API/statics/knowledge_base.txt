@@ -1,0 +1,718 @@
+=======================================================
+   BASE DE CONNAISSANCES - CHATBOT SMARTBIN IoT
+   Système Intelligent de Gestion des Déchets
+   Université Sultan Moulay Slimane - Khouribga
+   Année Universitaire : 2024-2025
+=======================================================
+
+-----------------------------------------------------------
+1. PRÉSENTATION GÉNÉRALE DU SYSTÈME
+-----------------------------------------------------------
+
+Le SmartBin IoT est un système intelligent de gestion des déchets développé pour la ville
+de Khouribga. Il combine l'Internet des Objets (IoT) et l'Intelligence Artificielle (IA)
+pour transformer une poubelle ordinaire en un point de données connecté et autonome.
+
+Le système repose sur trois composants principaux interconnectés :
+- La Poubelle Intelligente (matériel + capteurs)
+- Un Serveur Cloud (traitement et stockage des données)
+- Une Application Mobile (interface utilisateur)
+
+-----------------------------------------------------------
+2. CAPTEURS INTÉGRÉS DANS LA POUBELLE
+-----------------------------------------------------------
+
+La poubelle intelligente est équipée des capteurs suivants :
+
+- Capteur Ultrasonique HC-SR04 (x2) :
+  * Un pour mesurer le niveau de remplissage (monté à l'intérieur, sur le couvercle)
+  * Un pour détecter la présence d'une personne et déclencher l'ouverture automatique
+
+- Capteur de Gaz (série MQ-x) :
+  * Détecte les gaz dangereux (méthane, monoxyde de carbone, etc.)
+  * Déclenche une alerte critique si le seuil de danger est dépassé
+
+- Capteur DHT11 :
+  * Mesure la température et l'humidité à l'intérieur de la poubelle
+  * Permet de surveiller les conditions de décomposition des déchets
+
+- Capteur de Niveau d'Eau :
+  * Positionné au fond de la poubelle
+  * Détecte toute présence anormale de liquide
+
+- Capteur de Poids (Load Cell + module HX711) :
+  * Mesure le poids total des déchets dans la poubelle
+  * Utile pour l'analyse logistique et l'optimisation des tournées
+
+- Module GPS :
+  * Fournit la position géographique précise de chaque poubelle
+  * Utilisé pour la cartographie et l'optimisation des itinéraires
+
+-----------------------------------------------------------
+3. ACTIONNEURS ET AFFICHAGE
+-----------------------------------------------------------
+
+- Servomoteur :
+  * Ouvre automatiquement le couvercle quand une personne est détectée
+  * Referme le couvercle automatiquement après environ 1 seconde
+
+- Buzzer :
+  * Émet une alerte sonore en cas de détection d'eau anormale
+  * Signal local d'avertissement pour les travailleurs à proximité
+
+- Écran LCD :
+  * Affiche en temps réel le niveau de remplissage (ex : "LEVEL: 72%")
+  * Affiche des messages d'état ou d'alerte simples (ex : "FULL", "Gaz Détecté")
+
+-----------------------------------------------------------
+4. MICROCONTRÔLEUR
+-----------------------------------------------------------
+
+Le cerveau de la poubelle intelligente est l'ESP32 :
+- Lit et traite les données de tous les capteurs
+- Contrôle les actionneurs (servomoteur, buzzer, LCD)
+- Communique avec le cloud via Wi-Fi intégré
+- Supporte les protocoles MQTT et HTTP pour la transmission des données
+- Peut fonctionner en mode veille pour économiser l'énergie
+
+-----------------------------------------------------------
+5. NIVEAUX D'ALERTE
+-----------------------------------------------------------
+
+Le système définit plusieurs seuils d'alerte automatiques :
+
+- Poubelle pleine : niveau de remplissage ≥ 80% → alerte envoyée aux administrateurs
+- Gaz dangereux : concentration de gaz dépasse le seuil prédéfini → alerte critique immédiate
+- Présence d'eau : liquide détecté au fond → buzzer local + notification au système central
+- Température anormale : élévation inhabituelle pouvant indiquer un début d'incendie
+
+-----------------------------------------------------------
+6. APPLICATION MOBILE
+-----------------------------------------------------------
+
+L'application est développée avec Flutter et propose trois niveaux d'accès :
+
+Administrateurs :
+- Tableau de bord en temps réel de toutes les poubelles
+- Visualisation des métriques (température, humidité, gaz, eau, poids, remplissage)
+- Gestion et configuration des alertes
+- Accès aux historiques et aux rapports d'analyse
+- Prévisions de remplissage (heure suivante) via modèle LSTM
+- Prévisions météorologiques sur 7 jours via modèle LSTM
+
+Collecteurs (Workers) :
+- Carte interactive avec itinéraires optimisés (algorithme de Dijkstra)
+- État en temps réel des poubelles à collecter
+- Alertes contextuelles liées à leur zone d'intervention
+- Mise à jour du statut de collecte
+
+Citoyens (optionnel) :
+- Localisation des poubelles publiques les plus proches
+- Indication simple de l'état de remplissage (disponible / presque plein)
+- Informations sur le type de déchets acceptés
+
+-----------------------------------------------------------
+7. INTELLIGENCE ARTIFICIELLE INTÉGRÉE
+-----------------------------------------------------------
+
+Le système utilise plusieurs modèles d'IA :
+
+- Modèle LSTM (Long Short-Term Memory) :
+  * Prédit le niveau de remplissage pour l'heure suivante
+  * Prévoit la température et l'humidité pour les 7 prochains jours
+
+- Modèle DenseNet201 :
+  * Classifie le type de déchets (recyclable, organique, non recyclable)
+  * Aide au tri à la source et à la logistique de recyclage
+
+- NLP (Traitement du Langage Naturel) :
+  * Génère automatiquement des rapports d'analyse du système
+  * Produit des résumés intelligents des données collectées
+
+-----------------------------------------------------------
+8. OPTIMISATION DES ITINÉRAIRES
+-----------------------------------------------------------
+
+L'algorithme de Dijkstra est utilisé pour calculer le chemin de collecte optimal :
+- Prend en compte l'état en temps réel de chaque poubelle
+- Minimise la distance et le temps de trajet des collecteurs
+- Priorise les poubelles pleines (≥ 80%) ou en situation critique
+- L'itinéraire est mis à jour dynamiquement selon l'évolution du terrain
+
+-----------------------------------------------------------
+9. ARCHITECTURE TECHNIQUE
+-----------------------------------------------------------
+
+Firmware (poubelle) :
+- Langage : Arduino C++
+- Microcontrôleur : ESP32
+- Protocoles : MQTT / HTTP
+
+Backend (cloud) :
+- Framework : FastAPI (Python)
+- Base de données : Firebase (Firestore / Realtime Database)
+- Modèles IA : TensorFlow / Keras
+
+Frontend (application) :
+- Framework : Flutter (Dart)
+- Cartographie : Google Maps (plugin Flutter)
+- Graphiques : fl_chart
+
+-----------------------------------------------------------
+10. OBJECTIFS ET BÉNÉFICES DU SYSTÈME
+-----------------------------------------------------------
+
+Le SmartBin IoT vise les résultats mesurables suivants :
+
+- Réduction des coûts de collecte d'au moins 25%
+- Augmentation du taux de collecte à capacité optimale de 30%
+- Réduction du temps et de la distance des tournées d'au moins 20%
+- Diminution des émissions de CO2 liées au transport de 20%
+- Réduction de la fréquence des poubelles débordantes de 40%
+- Amélioration de la sécurité par détection des gaz dangereux en temps réel
+
+-----------------------------------------------------------
+11. PERSPECTIVES D'ÉVOLUTION
+-----------------------------------------------------------
+
+Les améliorations futures envisagées incluent :
+- Intégration de panneaux solaires pour l'autonomie énergétique
+- Ajout de détecteurs d'incendie
+- Mécanisme de compaction des déchets
+- Extension du déploiement à l'échelle de villes entières
+- Intégration avec d'autres systèmes Smart City
+- Application mobile citoyenne enrichie
+- Valorisation des données pour des politiques environnementales
+
+=======================================================
+   BASE DE CONNAISSANCES - CHATBOT SMARTBIN IoT
+   Système Intelligent de Gestion des Déchets
+   Ville de KHOURIBGA - Maroc
+   Année Universitaire : 2024-2025
+=======================================================
+
+-----------------------------------------------------------
+SECTION A : PRÉSENTATION DE LA VILLE DE KHOURIBGA
+-----------------------------------------------------------
+
+Khouribga est une ville marocaine située dans la région Béni Mellal-Khénifra, au centre
+du Maroc. Elle est mondialement connue comme la capitale des phosphates, abritant le siège
+historique du Groupe OCP (Office Chérifien des Phosphates), premier exportateur mondial.
+
+Informations générales :
+- Population estimée          : ~200 000 habitants (commune et périphérie)
+- Superficie                  : environ 132 km²
+- Altitude                    : ~800 m (plateau des phosphates)
+- Région administrative       : Béni Mellal-Khénifra
+- Province                    : Province de Khouribga
+- Situation géographique      : Plateau central marocain, entre Casablanca et Béni Mellal
+- Axe routier principal       : Route Nationale N11 (Casablanca-Béni Mellal) et Autoroute A2
+- Université                  : Université Sultan Moulay Slimane - École Polydisciplinaire de Khouribga (EPK)
+- Activité économique dominante : Industrie des phosphates (Groupe OCP)
+
+Climat :
+- Type          : Semi-aride continental
+- Été           : Chaud et sec, températures entre 35°C et 42°C
+- Hiver         : Frais et humide, températures entre 3°C et 15°C
+- Précipitations : 350 à 450 mm/an
+
+Ce contexte climatique influence directement la décomposition des déchets dans les
+poubelles (chaleur accélère la fermentation, pluies génèrent des infiltrations d'eau).
+
+-----------------------------------------------------------
+SECTION B : QUARTIERS DE KHOURIBGA ET DÉPLOIEMENT SMARTBIN
+-----------------------------------------------------------
+
+La ville de Khouribga est divisée en zones géographiques regroupant plusieurs quartiers.
+Le système SmartBin IoT est déployé progressivement sur l'ensemble de ces zones.
+
+===========================================================
+ZONE 1 — CENTRE-VILLE
+===========================================================
+
+Quartiers couverts :
+- Centre administratif, Hay El Amal, Hay El Farah, Quartier de la Gare
+
+Caractéristiques :
+- Zone très dense, forte activité commerciale et administrative
+- Présence de marchés, banques, administrations publiques, cafés, restaurants
+- Fort taux de production de déchets (déchets alimentaires, emballages, cartons)
+- Passages piétons importants (Avenue Mohammed V, Boulevard Hassan II, Avenue des FAR)
+
+Déploiement SmartBin :
+- Nombre de poubelles intelligentes   : 35 unités
+- Type dominant de déchets            : Déchets ménagers mixtes + déchets commerciaux
+- Fréquence de collecte               : 2 fois par jour (matin 06h00 et soir 18h00)
+- Taux de remplissage moyen           : 85% (zone critique haute densité)
+- Seuil d'alerte atteint fréquemment  : Oui (poubelles atteignant 80% en ~5h)
+- Capteurs actifs prioritaires        : Ultrasons (remplissage), Gaz, Poids
+- Alertes fréquentes                  : Débordement, odeurs (gaz fermentation)
+
+Itinéraire camion Zone 1 (Circuit Centre-Ville) :
+  Dépôt municipal → Avenue Mohammed V → Boulevard Hassan II
+  → Avenue des FAR → Rue du Commerce → Place du marché central
+  → Quartier El Amal → Quartier de la Gare → Retour dépôt
+  Distance totale estimée : 10 km | Durée estimée : 1h30
+
+-----------------------------------------------------------
+
+===========================================================
+ZONE 2 — HAY EL QODS / HAY ENNASR
+===========================================================
+
+Quartiers couverts :
+- Hay El Qods, Hay Ennasr, Hay El Mouahidine
+
+Caractéristiques :
+- Zone résidentielle dense et en expansion
+- Population mixte (familles, logements sociaux)
+- Densité modérée à élevée
+- Déchets principalement ménagers (organiques + plastiques)
+
+Déploiement SmartBin :
+- Nombre de poubelles intelligentes   : 22 unités
+- Type dominant de déchets            : Déchets ménagers organiques
+- Fréquence de collecte               : 1 fois par jour (matin 07h00)
+- Taux de remplissage moyen           : 70%
+- Seuil d'alerte atteint fréquemment  : Modérément
+- Capteurs actifs prioritaires        : DHT11, Ultrasons, Niveau d'eau
+- Alertes fréquentes                  : Humidité élevée, infiltration eau (pluies)
+
+Itinéraire camion Zone 2 (Circuit Nord) :
+  Dépôt municipal → Route de Hay El Qods → Hay El Qods (nord)
+  → Hay El Qods (sud) → Hay Ennasr → Hay El Mouahidine
+  → Retour par Route Nationale N11 → Dépôt
+  Distance totale estimée : 12 km | Durée estimée : 1h30
+
+-----------------------------------------------------------
+
+===========================================================
+ZONE 3 — HAY EL MASSIRA / HAY TAKADDOUM
+===========================================================
+
+Quartiers couverts :
+- Hay El Massira, Hay Takaddoum
+
+Caractéristiques :
+- Zone résidentielle avec commerces de proximité
+- Population à majorité familiale
+- Voies de circulation de taille moyenne
+
+Déploiement SmartBin :
+- Nombre de poubelles intelligentes   : 18 unités
+- Type dominant de déchets            : Déchets ménagers mixtes
+- Fréquence de collecte               : 1 fois par jour (matin 07h30)
+- Taux de remplissage moyen           : 65%
+- Seuil d'alerte atteint fréquemment  : Rarement
+- Capteurs actifs prioritaires        : Ultrasons, DHT11
+- Alertes fréquentes                  : Poubelles pleines en fin de journée
+
+Itinéraire camion Zone 3 (Circuit Sud-Ouest) :
+  Dépôt municipal → Boulevard Principal → Quartier El Massira (entrée est)
+  → El Massira (centre) → Hay Takaddoum → Jonction Boulevard Hassan II
+  → Retour dépôt
+  Distance totale estimée : 9 km | Durée estimée : 1h00
+
+-----------------------------------------------------------
+
+===========================================================
+ZONE 4 — AXE ROUTE NATIONALE N11 (ESSALAM)
+===========================================================
+
+Quartiers couverts :
+- Hay Essalam, Zone commerciale, Hay El Wahda
+
+Caractéristiques :
+- Axe très fréquenté (transit routier Casablanca-Béni Mellal, RN11)
+- Présence de commerces, gare routière, grandes surfaces
+- Fort flux de passants et de véhicules
+- Production de déchets élevée liée à l'activité commerciale
+
+Déploiement SmartBin :
+- Nombre de poubelles intelligentes   : 28 unités
+- Type dominant de déchets            : Emballages, plastiques, déchets commerciaux
+- Fréquence de collecte               : 2 fois par jour (06h30 et 17h00)
+- Taux de remplissage moyen           : 80%
+- Seuil d'alerte atteint fréquemment  : Oui (zone à fort flux)
+- Capteurs actifs prioritaires        : Poids, Ultrasons, GPS
+- Alertes fréquentes                  : Remplissage rapide, poubelles lourdes
+
+Itinéraire camion Zone 4 (Circuit N11) :
+  Dépôt municipal → Route Nationale N11 (direction est)
+  → Zone Gare routière → Zone commerciale → Hay Essalam
+  → Hay El Wahda → Retour N11 direction dépôt
+  Distance totale estimée : 13 km | Durée estimée : 1h30
+
+-----------------------------------------------------------
+
+===========================================================
+ZONE 5 — CITÉ OCP / QUARTIER INDUSTRIEL
+===========================================================
+
+Quartiers couverts :
+- Cité OCP, Quartier Industriel, Zone des mines
+
+Caractéristiques :
+- Quartiers historiques liés au Groupe OCP (logements ouvriers et cadres)
+- Présence de zones industrielles et ateliers
+- Activité industrielle (phosphates) génère des déchets spécifiques
+- Zone patrimoniale industrielle de Khouribga
+
+Déploiement SmartBin :
+- Nombre de poubelles intelligentes   : 20 unités
+- Type dominant de déchets            : Déchets ménagers + déchets industriels légers
+- Fréquence de collecte               : 1 à 2 fois par jour selon le quartier
+  * Cité OCP : 2x/jour (06h00 et 17h30)
+  * Quartier Industriel : 1x/jour (07h00)
+  * Zone des mines : 1x/jour (08h00)
+- Taux de remplissage moyen           : 75%
+- Seuil d'alerte atteint fréquemment  : Modérément
+- Capteurs actifs prioritaires        : Ultrasons, Gaz (zone industrielle = risque émissions)
+- Alertes fréquentes                  : Gaz (ateliers industriels), remplissage rapide
+
+Itinéraire camion Zone 5 (Circuit OCP-Industriel) :
+  Dépôt municipal → Route de la Cité OCP → Cité OCP (résidentiel)
+  → Quartier Industriel (rue principale) → Zone des mines (accès principal)
+  → Retour par route périphérique → Dépôt
+  Distance totale estimée : 11 km | Durée estimée : 1h30
+
+-----------------------------------------------------------
+
+===========================================================
+ZONE 6 — HAY MOULAY RACHID / HAY BADR
+===========================================================
+
+Quartiers couverts :
+- Hay Moulay Rachid, Hay Badr, Hay El Wifaq
+
+Caractéristiques :
+- Grands quartiers résidentiels modernes
+- Logements collectifs et villas
+- Population jeune et active
+- Bonne accessibilité voirie
+
+Déploiement SmartBin :
+- Nombre de poubelles intelligentes   : 25 unités
+- Type dominant de déchets            : Déchets ménagers, emballages
+- Fréquence de collecte               : 1 fois par jour (matin 06h45)
+- Taux de remplissage moyen           : 68%
+- Seuil d'alerte atteint fréquemment  : Rarement
+- Capteurs actifs prioritaires        : DHT11, Poids, Ultrasons
+- Alertes fréquentes                  : Peu d'alertes, zone bien gérée
+
+Itinéraire camion Zone 6 (Circuit Est) :
+  Dépôt municipal → Boulevard Moulay Rachid → Hay Moulay Rachid (nord)
+  → Hay Moulay Rachid (sud) → Hay Badr → Hay El Wifaq
+  → Avenue de retour → Dépôt
+  Distance totale estimée : 11 km | Durée estimée : 1h20
+
+-----------------------------------------------------------
+
+===========================================================
+ZONE 7 — HAY CHARAF / PÉRIPHÉRIE SUD
+===========================================================
+
+Quartiers couverts :
+- Hay Charaf, Zone périphérique sud
+
+Caractéristiques :
+- Zone semi-urbaine en expansion
+- Accès parfois limité (routes secondaires)
+- Production de déchets ménagers + organiques
+
+Déploiement SmartBin :
+- Nombre de poubelles intelligentes   : 12 unités
+- Type dominant de déchets            : Déchets ménagers + organiques
+- Fréquence de collecte               : 1 fois par jour (matin 08h30)
+- Taux de remplissage moyen           : 58%
+- Seuil d'alerte atteint fréquemment  : Rarement
+- Capteurs actifs prioritaires        : Niveau d'eau, DHT11, GPS
+- Alertes fréquentes                  : Infiltration d'eau (zones basses), GPS suivi
+
+Itinéraire camion Zone 7 (Circuit Sud) :
+  Dépôt municipal → Route Sud → Hay Charaf (entrée)
+  → Hay Charaf (centre) → Périphérie sud → Retour route principale → Dépôt
+  Distance totale estimée : 14 km | Durée estimée : 1h45
+
+-----------------------------------------------------------
+
+===========================================================
+ZONE 8 — CAMPUS EPK / PÉRIPHÉRIE NORD
+===========================================================
+
+Quartiers et zones couverts :
+- Campus EPK (Université Sultan Moulay Slimane), Hay El Amal Nord, Périphérie nord
+
+Caractéristiques :
+- Zone universitaire et résidentielle périphérique
+- Habitat mixte (résidences étudiantes, villas, logements)
+- Population jeune (étudiants EPK)
+- Déchets ménagers + déchets liés à l'activité universitaire
+
+Déploiement SmartBin :
+- Nombre de poubelles intelligentes   : 15 unités
+- Type dominant de déchets            : Déchets ménagers + papier/carton universitaire
+- Fréquence de collecte               : 1 fois par jour (matin 08h00)
+- Taux de remplissage moyen           : 55%
+- Seuil d'alerte atteint fréquemment  : Rarement (hors période examens)
+  En période examens (janvier, juin) : fréquence augmentée à 2x/jour
+- Capteurs actifs prioritaires        : GPS, Ultrasons, DHT11
+- Alertes fréquentes                  : Remplissage rapide période examens
+
+Itinéraire camion Zone 8 (Circuit Nord-Université) :
+  Dépôt municipal → Route Campus EPK → Campus EPK (entrée principale)
+  → Résidences universitaires → Hay El Amal Nord → Périphérie nord
+  → Retour route principale → Dépôt
+  Distance totale estimée : 15 km | Durée estimée : 1h45
+
+-----------------------------------------------------------
+SECTION C : RÉCAPITULATIF GLOBAL DU DÉPLOIEMENT
+-----------------------------------------------------------
+
++------------------+------------------+----------+----------------------+
+| Zone             | Quartiers        | Poubelles| Fréquence collecte   |
++------------------+------------------+----------+----------------------+
+| Zone 1 Centre    | 4 quartiers      | 35       | 2x/jour              |
+| Zone 2 Qods/Nasr | 3 quartiers      | 22       | 1x/jour              |
+| Zone 3 Massira   | 2 quartiers      | 18       | 1x/jour              |
+| Zone 4 Axe N11   | 3 zones          | 28       | 2x/jour              |
+| Zone 5 OCP/Indus | 3 quartiers      | 20       | 1 à 2x/jour          |
+| Zone 6 M.Rachid  | 3 quartiers      | 25       | 1x/jour              |
+| Zone 7 Charaf    | 2 quartiers      | 12       | 1x/jour              |
+| Zone 8 EPK/Nord  | 3 quartiers      | 15       | 1x/jour (2x examens) |
++------------------+------------------+----------+----------------------+
+| TOTAL            | 23 zones/qtiers  | 175      | Selon densité        |
++------------------+------------------+----------+----------------------+
+
+-----------------------------------------------------------
+SECTION D : OPÉRATIONS DE COLLECTE — DONNÉES DÉTAILLÉES
+-----------------------------------------------------------
+
+Fréquence d'extraction des déchets par type de zone :
+
+Zones HAUTE DENSITÉ (Centre-Ville, Axe N11) :
+- Collecte : 2 fois par jour
+- Horaires : Matin 06h00-08h00 / Soir 17h00-19h00
+- Durée moyenne par tournée : 1h30 à 2h00
+- Nombre de camions mobilisés : 3 camions simultanément
+
+Zones MOYENNE DENSITÉ (Moulay Rachid, Qods/Nasr, Massira) :
+- Collecte : 1 fois par jour
+- Horaires : Matin 06h30-09h00
+- Durée moyenne par tournée : 1h00 à 1h45
+- Nombre de camions mobilisés : 2 camions simultanément
+
+Zones FAIBLE DENSITÉ (Campus EPK, Charaf, Périphérie) :
+- Collecte : 1 fois par jour (parfois tous les 2 jours)
+- Horaires : Matin 08h00-10h30
+- Durée moyenne par tournée : 1h45 à 2h15
+- Nombre de camions mobilisés : 1 camion
+
+Collectes spéciales et exceptionnelles :
+- Marchés hebdomadaires (souks)    : collecte supplémentaire les jours de souk
+- Fêtes nationales / Ramadan       : fréquence augmentée de 50% sur toutes les zones
+- Saison examens universitaires      : fréquence augmentée en zone universitaire (Zone 8)
+- Alertes SmartBin (>80%)          : intervention immédiate déclenchée par l'application
+
+-----------------------------------------------------------
+SECTION E : FLOTTE DE VÉHICULES ET INFRASTRUCTURE
+-----------------------------------------------------------
+
+Flotte de camions de collecte :
+- Nombre total de camions          : 8 camions bennes tasseuses
+- Capacité par camion              : 10 à 12 tonnes de déchets compactés
+- Carburant                        : Diesel (transition vers GNV envisagée)
+- Dépôt municipal central          : Situé en périphérie nord de la ville
+
+Équipes de collecte :
+- Nombre d'équipes                 : 8 équipes (1 par camion)
+- Composition d'une équipe         : 1 chauffeur + 2 éboueurs
+- Équipements de sécurité          : Gilets fluorescents, gants, masques
+- Application utilisée             : SmartBin App (interface Collecteur/Worker)
+
+Centre de traitement des déchets :
+- Localisation                     : Décharge contrôlée à ~8 km du centre-ville
+- Type                             : Décharge contrôlée municipale
+- Capacité journalière             : ~200 tonnes/jour
+- Déchets recyclables              : Tri effectué sur site (verre, métal, plastique)
+- Déchets organiques               : Compostage partiel en cours de développement
+
+-----------------------------------------------------------
+SECTION F : ITINÉRAIRES GLOBAUX ET OPTIMISATION DIJKSTRA
+-----------------------------------------------------------
+
+Le système SmartBin utilise l'algorithme de Dijkstra pour calculer en temps réel
+les itinéraires optimaux en fonction de l'état de remplissage de chaque poubelle.
+
+Principe de priorisation des poubelles :
+- CRITIQUE (rouge)   : remplissage ≥ 80% → collecte immédiate prioritaire
+- ÉLEVÉ (orange)     : remplissage 60-79% → collecte programmée en priorité 2
+- NORMAL (vert)      : remplissage < 60% → collecte selon planning standard
+
+Circuit général de collecte journalière (ordre des zones) :
+
+Tournée du MATIN (6h00 - 10h30) :
+  [Départ] Dépôt Municipal (Périphérie Nord)
+       ↓
+  Zone 1 — Centre-Ville (déchets nocturnes accumulés)
+       ↓
+  Zone 4 — Axe N11 / Gare routière / Zone commerciale
+       ↓
+  Zone 3 — Hay El Massira / Hay Takaddoum
+       ↓
+  Zone 6 — Hay Moulay Rachid / Hay Badr / Hay El Wifaq
+       ↓
+  Zone 5 — Cité OCP / Quartier Industriel
+       ↓
+  Zone 2 — Hay El Qods / Hay Ennasr
+       ↓
+  Zone 7 — Hay Charaf / Périphérie sud
+       ↓
+  Zone 8 — Campus EPK / Périphérie nord
+       ↓
+  [Retour] Dépôt Municipal + déchargement décharge
+
+Tournée du SOIR (17h00 - 19h30) — zones haute densité uniquement :
+  [Départ] Dépôt Municipal
+       ↓
+  Zone 1 — Centre-Ville (pic d'activité commerciale fin de journée)
+       ↓
+  Zone 4 — Axe N11 (retour travailleurs, marché du soir)
+       ↓
+  Zone 5 — Cité OCP / Quartier Industriel (fin de poste)
+       ↓
+  [Retour] Dépôt Municipal
+
+Distance totale journalière estimée (toutes tournées) : ~130 km
+Durée totale estimée (toutes équipes) : ~18h de travail cumulées
+Économie de carburant estimée grâce à Dijkstra : 20 à 25% vs itinéraires fixes
+
+-----------------------------------------------------------
+SECTION G : DONNÉES DE PERFORMANCE DU SYSTÈME
+-----------------------------------------------------------
+
+Statistiques globales du système SmartBin à Khouribga :
+
+Production de déchets :
+- Production journalière estimée   : 150 à 200 tonnes/jour (ville entière)
+- Déchets ménagers                 : ~65% du total
+- Déchets commerciaux              : ~25% du total
+- Déchets industriels légers       : ~10% du total
+
+Performance avant SmartBin (système classique) :
+- Fréquence de collecte            : Fixe, sans tenir compte du remplissage réel
+- Poubelles débordantes / semaine  : ~40% des poubelles
+- Coût mensuel opérationnel        : Référence = 100% (base de comparaison)
+- Émissions CO2 / mois             : Référence = 100% (base de comparaison)
+
+Performance avec SmartBin (système intelligent) :
+- Poubelles débordantes / semaine  : ~24% des poubelles (↓ 40%)
+- Réduction coût opérationnel      : ↓ 25% (carburant, heures de travail)
+- Réduction émissions CO2          : ↓ 20%
+- Amélioration taux collecte optimal: ↑ 30%
+- Réduction distance parcourue     : ↓ 20%
+
+-----------------------------------------------------------
+SECTION H : ALERTES ET INCIDENTS ENREGISTRÉS
+-----------------------------------------------------------
+
+Types d'alertes les plus fréquentes par zone :
+
+Zone 1 (Centre-Ville) :
+- Débordement (>80%)               : 12 à 15 alertes/semaine
+- Odeurs / Gaz fermentation        : 3 à 5 alertes/semaine
+- Poids excessif                   : 2 alertes/semaine
+
+Zone 4 (Axe N11) :
+- Débordement (>80%)               : 8 à 10 alertes/semaine
+- Présence d'eau (pluies)          : 1 à 2 alertes/semaine
+
+Zone 5 (Cité OCP / Industriel) :
+- Gaz (ateliers industriels)        : 4 à 6 alertes/semaine
+- Débordement                      : 5 à 7 alertes/semaine
+
+Zone 8 (Campus EPK / Périphérie) :
+- Remplissage rapide (examens)     : 2 à 4 alertes/semaine
+- Déchets papier/carton            : 1 à 3 alertes/semaine (période examens)
+
+Procédure en cas d'alerte critique (gaz dangereux) :
+1. Notification immédiate envoyée aux administrateurs et collecteurs concernés
+2. Camion le plus proche redirigé vers la poubelle critique (via Dijkstra)
+3. Buzzer local activé sur la poubelle pour avertir les passants
+4. Rapport d'incident automatiquement généré dans l'application
+5. Résolution confirmée par le collecteur via l'application mobile
+
+-----------------------------------------------------------
+SECTION I : INFORMATIONS SUR LE PROJET ET L'ÉQUIPE
+-----------------------------------------------------------
+
+Établissement   : Université Sultan Moulay Slimane (USMS)
+Faculté         : École Polydisciplinaire de Khouribga (EPK)
+Master          : Artificial Intelligence & Digital Computing (AIDC)
+Module          : Internet des Objets (IoT)
+Encadrant       : Prof. Mohamed BASLAM
+Année           : 2024-2025
+
+Équipe projet :
+- Yassine Boujnan
+- Meryem Echbab
+- Walid Ait Moussa
+- Bouchra Manoussi
+- Mohamed Belghiti Alaoui
+- Raja Benaddi
+- Mimoun Ouhda
+
+Objectifs chiffrés du projet :
+- Réduction coûts de collecte        : ≥ 25%
+- Amélioration taux collecte optimal : ≥ 30%
+- Réduction distance tournées        : ≥ 20%
+- Réduction émissions CO2            : ≥ 20%
+- Réduction débordements             : ≥ 40%
+
+-----------------------------------------------------------
+SECTION J : QUESTIONS FRÉQUENTES (FAQ)
+-----------------------------------------------------------
+
+Q : Combien de poubelles intelligentes y a-t-il à Khouribga ?
+R : Le système SmartBin compte actuellement 175 poubelles intelligentes
+    réparties sur 8 zones couvrant l'ensemble des quartiers de Khouribga.
+
+Q : Quelle zone a le plus de poubelles ?
+R : La Zone 1 (Centre-Ville) avec 35 poubelles, suivie de la Zone 4
+    (Axe N11 / Essalam) avec 28 poubelles.
+
+Q : Combien de fois par jour les poubelles sont-elles vidées ?
+R : Cela dépend de la zone :
+    - 2 fois/jour : Centre-Ville et Axe N11 (haute densité)
+    - 1 fois/jour : Toutes les autres zones résidentielles
+    - Collecte immédiate possible si alerte SmartBin déclenchée (>80%)
+
+Q : Quel est le chemin suivi par les camions ?
+R : L'itinéraire est calculé dynamiquement par l'algorithme de Dijkstra selon
+    l'état de remplissage en temps réel. En général, la tournée du matin part
+    du dépôt, passe par le Centre-Ville, l'axe N11, Hay Moulay Rachid,
+    la Cité OCP, puis Hay Charaf et le Campus EPK avant de retourner au dépôt.
+
+Q : Que se passe-t-il quand une poubelle est pleine ?
+R : Dès que le niveau de remplissage atteint 80%, le système envoie
+    automatiquement une alerte aux administrateurs et recalcule l'itinéraire
+    du camion le plus proche pour une intervention prioritaire.
+
+Q : Les données sont-elles disponibles en temps réel ?
+R : Oui, toutes les métriques (remplissage, température, humidité, gaz, poids,
+    eau, GPS) sont transmises en temps réel via Wi-Fi à l'application mobile,
+    accessible par les administrateurs et les collecteurs.
+
+Q : Quelle technologie est utilisée pour les prédictions ?
+R : Le système utilise des modèles LSTM (réseaux de neurones récurrents) pour
+    prédire le niveau de remplissage de chaque poubelle pour l'heure suivante
+    et les conditions météorologiques sur 7 jours.
+
+Q : Comment contacter le service de collecte en cas d'urgence ?
+R : Via l'application SmartBin (bouton alerte) ou auprès de la commune
+    de Khouribga, Division Environnement et Propreté Urbaine.
+
+=======================================================
+   FIN DU FICHIER DE CONNAISSANCES SMARTBIN KHOURIBGA
+=======================================================
+
