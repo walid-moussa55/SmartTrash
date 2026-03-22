@@ -208,7 +208,7 @@ Project developed by **OverflowAI**:
 - [Momoun Ouhda](https://github.com/mimounouhd)
 - [Yassine Boujnan](https://github.com/boujnan03)
 - [Othman Jabiri](https://github.com/Othman-Jabiri)
-- [Bouchra Manoussi]()
+- [Bouchra Manoussi](https://github.com/BOUCHRAMANOUSSI)
 ---
 
 ## Useful Links
