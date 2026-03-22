@@ -1,130 +1,180 @@
 # NaqiAI
 
-NaqiAI est une application Flutter complète de gestion intelligente des déchets, destinée à la visualisation, l’analyse et l’optimisation de la collecte des déchets urbains. Elle intègre des fonctionnalités avancées de suivi en temps réel, d’analyse de données, de génération de rapports, de notifications et de recommandations basées sur l’IA.
+NaqiAI is a comprehensive Flutter application for smart waste management, designed for real-time visualization, data analysis, and optimization of urban waste collection. It integrates advanced features including live tracking, data analytics, report generation, push notifications, AI-powered recommendations, route optimization, and waste predictions.
 
 ---
 
-## Fonctionnalités principales
+## Key Features
 
-### 1. **Tableau de bord dynamique**
-- **Vue d’ensemble** des niveaux de remplissage des poubelles, du gaz, de la température, de l’humidité, etc.
-- **Graphiques interactifs** (Syncfusion, fl_chart) pour visualiser les tendances, corrélations et répartitions.
-- **Indicateurs clés** : nombre de poubelles pleines, camions nécessaires, employés requis, etc.
+### 1. **Dynamic Dashboard**
+- **Overview** of bin fill levels, gas readings, temperature, humidity, and more.
+- **Interactive charts** (Syncfusion, fl_chart) for visualizing trends, correlations, and distributions.
+- **Key indicators**: number of full bins, trucks required, employees needed, etc.
 
-### 2. **Analyse avancée**
-- **Analyse de la population** : corrélation entre l’utilisation des poubelles et la population par zone.
-- **Analyse environnementale** : suivi des niveaux de gaz, température, humidité, et alertes environnementales.
-- **Analyse des patterns** : affichage de rapports Markdown dynamiques générés côté serveur (NLP, tendances, etc.).
-- **Recommandations d’anomalies** : suggestions automatiques d’actions en cas de détection d’anomalies (IA).
+### 2. **Advanced Analytics**
+- **Population analysis**: correlation between bin usage and population by zone.
+- **Environmental analysis**: gas level tracking, temperature, humidity, and environmental alerts.
+- **Pattern analysis**: dynamic Markdown reports generated server-side (NLP, trends, etc.).
+- **Anomaly recommendations**: automatic action suggestions when anomalies are detected (AI).
 
-### 3. **Génération et visualisation de rapports**
-- **Génération de rapports PDF** à la demande, téléchargeables sur mobile et web.
-- **Visualisation intégrée** des rapports PDF (mobile/desktop).
+### 3. **AI Eco Assistant** *(New)*
+- **Conversational AI assistant** for waste management queries and environmental guidance.
+- **Voice input support** via speech-to-text for hands-free interaction.
+- Provides smart tips, answers questions, and interprets data findings.
 
-### 4. **Notifications**
-- **Notifications push** via Firebase Cloud Messaging pour les alertes importantes (poubelles pleines, gaz élevé, etc.).
+### 4. **Waste Prediction** *(New)*
+- **Bin fill-level prediction**: forecasts when bins will reach capacity based on historical data.
+- **Waste type prediction**: identifies the category of waste for smarter sorting and routing.
+- **Smart bin search**: enables searching and filtering bins based on predicted state.
 
-### 5. **Gestion des utilisateurs**
-- **Authentification** (Firebase Auth).
-- **Gestion des rôles** (admin/utilisateur) pour l’accès aux fonctionnalités avancées.
+### 5. **Route Optimization** *(New)*
+- **Optimized collection routes** generated automatically based on bin fill levels and location.
+- **Interactive route map** for visualizing and navigating planned collection routes.
+- Integrates with OpenStreetMap (`flutter_osm_plugin`) for live map rendering.
+- Uses GPS location (`geolocator`) to enable real-time position tracking.
 
-### 6. **Paramétrage**
-- **Configuration dynamique** de l’URL du serveur backend via l’interface.
-- **Sauvegarde des préférences** utilisateur (SharedPreferences).
+### 6. **Report Generation & Visualization**
+- **On-demand PDF report generation**, downloadable on mobile and web.
+- **Integrated PDF viewer** for viewing reports directly in the app (mobile/desktop).
+
+### 7. **Push Notifications**
+- **Push notifications** via Firebase Cloud Messaging for critical alerts (full bins, high gas levels, etc.).
+- **Local notifications** support via `flutter_local_notifications`.
+
+### 8. **User Management**
+- **Authentication** (Firebase Auth) with Login and Sign-Up screens.
+- **Role management** (admin/user) for access control to advanced features.
+- **Profile settings** screen for managing user account information.
+
+### 9. **Theming & Personalization** *(New)*
+- **Dark/Light mode** support with a dynamic theme provider.
+- **Google Fonts** integration for consistent, modern typography.
+- User preferences saved via SharedPreferences.
+
+### 10. **App Settings**
+- **Dynamic backend URL configuration** via the app interface.
+- **User preference persistence** (SharedPreferences).
 
 ---
 
-## Architecture technique
+## Technical Architecture
 
-- **Flutter** (multi-plateforme : Web, Android, iOS, Desktop)
-- **Backend** : API REST (ex : FastAPI, Flask) pour l’agrégation et l’analyse des données
-- **Firebase** : Auth, Realtime Database, Cloud Messaging
-- **Syncfusion** & **fl_chart** : visualisation avancée des données
-- **Gestion des permissions** : accès au stockage, notifications, etc.
-
----
-
-## Structure des écrans principaux
-
-- `home_screen.dart` : Accueil, navigation principale
-- `waste_dashboard.dart` : Tableau de bord et visualisations
-- `final_rapport_generation_screen.dart` : Génération et affichage des rapports PDF
-- `analyse_population_tab.dart` : Analyse de la population et corrélations
-- `anomaly_recommendation_screen.dart` : Recommandations IA en cas d’anomalies
-- `patterns_analysis_viewer_screen.dart` : Affichage dynamique des analyses Markdown
-- `app_settings.dart` : Gestion des paramètres et de l’URL serveur
+- **Flutter** (cross-platform: Web, Android, iOS, Desktop)
+- **Backend**: REST API (e.g., FastAPI, Flask) for data aggregation and analysis
+- **Firebase**: Auth, Realtime Database, Cloud Messaging
+- **Syncfusion** & **fl_chart**: advanced data visualization
+- **OpenStreetMap** (`flutter_osm_plugin`): interactive map rendering
+- **Geolocator**: GPS-based real-time positioning
+- **Speech-to-Text** (`speech_to_text`): voice input for the Eco Assistant
+- **Permission management**: storage, notifications, location, microphone, etc.
 
 ---
 
-## Installation & Lancement
+## Main Screen Structure
 
-1. **Cloner le dépôt**
-2. **Configurer Firebase**
+| File | Description |
+|---|---|
+| `main.dart` | App entry point, theme & Firebase initialization |
+| `home_screen.dart` | Main navigation hub |
+| `login_screen.dart` | User login |
+| `signup_screen.dart` | User registration |
+| `waste_dashboard.dart` | Dashboard with charts and KPIs |
+| `analyse_population_tab.dart` | Population analytics and correlations |
+| `anomaly_recommendation_screen.dart` | AI-based anomaly recommendations |
+| `patterns_analysis_viewer_screen.dart` | Dynamic Markdown analytics viewer |
+| `eco_assistant_screen.dart` | Conversational AI Eco Assistant (voice + text) *(New)* |
+| `prediction_screen.dart` | Bin fill-level predictions *(New)* |
+| `type_prediction_screen.dart` | Waste type prediction *(New)* |
+| `map_screen.dart` | Interactive OSM map of bins *(New)* |
+| `optimized_route_screen.dart` | Optimized collection route display *(New)* |
+| `route_map_screen.dart` | Route navigation map *(New)* |
+| `final_rapport_generation_screen.dart` | PDF report generation and viewing |
+| `profile_settings_screen.dart` | User profile management *(New)* |
+| `app_settings.dart` | App settings and backend URL configuration |
+| `theme_provider.dart` | Dark/Light theme provider *(New)* |
 
-   Pour connecter NaqiAI à Firebase :
+---
 
-   1. **Créer un projet Firebase**  
-      Rendez-vous sur [https://console.firebase.google.com/](https://console.firebase.google.com/), créez un projet et suivez les instructions.
+## Installation & Setup
 
-   2. **Ajouter une application à votre projet**  
-      - Pour le web : ajoutez une application web et récupérez la configuration (`apiKey`, `authDomain`, etc.).
-      - Pour Android/iOS : ajoutez les applications correspondantes et suivez les instructions pour les fichiers `google-services.json` (Android) ou `GoogleService-Info.plist` (iOS).
+1. **Clone the repository**
 
-   3. **Configurer les fichiers dans le projet Flutter**  
-      - **Web** :  
-        - Placez la configuration dans `web/firebase-config.js`.
-      - **Mobile** :  
-        - Placez `google-services.json` dans `android/app/` et/ou `GoogleService-Info.plist` dans `ios/Runner/`.
+2. **Configure Firebase**
 
-   4. **Activer les services nécessaires**  
-      - Activez l’authentification (Email/Password, etc.) dans la console Firebase.
-      - Activez la base de données en temps réel ou Firestore selon vos besoins.
-      - Activez Cloud Messaging pour les notifications push.
+   To connect NaqiAI to Firebase:
 
-   5. **Vérifier l’intégration**  
-      - Lancez l’application. Si tout est bien configuré, la connexion à Firebase s’effectuera automatiquement.
+   1. **Create a Firebase project**  
+      Go to [https://console.firebase.google.com/](https://console.firebase.google.com/), create a project, and follow the setup wizard.
 
-   > **Astuce** :  
-   > Les fichiers d’exemple de configuration sont déjà présents (`firebase_options_web.dart`, `firebase-config.js`).  
-   > Adaptez-les avec vos propres clés et identifiants de projet Firebase.
+   2. **Add an application to your project**  
+      - For web: add a web app and retrieve the configuration (`apiKey`, `authDomain`, etc.).
+      - For Android/iOS: add the corresponding apps and download the config files:
+        - `google-services.json` (Android)
+        - `GoogleService-Info.plist` (iOS)
 
-3. **Configurer l’URL du serveur** dans les paramètres de l’application
-4. **Installer les dépendances**
+   3. **Place configuration files in the Flutter project**  
+      - **Web**: Place the config in `web/firebase-config.js`.
+      - **Mobile**:
+        - `google-services.json` → `android/app/`
+        - `GoogleService-Info.plist` → `ios/Runner/`
+
+   4. **Enable required Firebase services**  
+      - Authentication (Email/Password, etc.)
+      - Realtime Database or Firestore
+      - Cloud Messaging (for push notifications)
+
+   5. **Verify the integration**  
+      Launch the app — if configured correctly, Firebase will connect automatically.
+
+   > **Tip**:  
+   > Example configuration files are already provided (`firebase_options_web.dart`, `firebase-config.js`).  
+   > Replace them with your own Firebase project keys and identifiers.
+
+3. **Configure the backend server URL** in the app settings screen.
+
+4. **Install dependencies**
    ```sh
    flutter pub get
    ```
-5. **Lancer l’application**
+
+5. **Run the application**
    ```sh
-   flutter run -d chrome   # ou android/ios
+   flutter run -d chrome      # Web
+   flutter run -d android     # Android
+   flutter run -d ios         # iOS
    ```
 
 ---
 
-## Remarques
+## Notes
 
-- L’application nécessite un backend compatible (API REST) pour fonctionner pleinement.
-- Les notifications push nécessitent une configuration Firebase Cloud Messaging.
-- Les rapports PDF sont générés côté serveur et récupérés via l’API.
-
----
-
-## Auteurs
-
-- WAM development
+- The app requires a compatible REST API backend to function fully.
+- Push notifications require Firebase Cloud Messaging configuration.
+- PDF reports are generated server-side and retrieved via the API.
+- Voice input (Eco Assistant) requires microphone permission on the device.
+- Map and route features require location permissions and an internet connection for tile loading.
 
 ---
 
-## Liens utiles
+## Authors
 
-- [Documentation Flutter](https://docs.flutter.dev/)
-- [Dépôt officiel Syncfusion Flutter](https://github.com/syncfusion/flutter-widgets)
-- [Documentation Syncfusion Charts](https://help.syncfusion.com/flutter/chart/overview)
-- [Documentation Firebase pour Flutter](https://firebase.flutter.dev/docs/overview)
-- [Documentation FastAPI](https://fastapi.tiangolo.com/)
-- [Documentation Flask](https://flask.palletsprojects.com/)
+- [WAM Development](https://github.com/walid-moussa55)
 
 ---
 
-**NaqiAI** : Optimisez la gestion urbaine des déchets grâce à la donnée et à l’intelligence artificielle !
+## Useful Links
+
+- [Flutter Documentation](https://docs.flutter.dev/)
+- [Syncfusion Flutter Widgets](https://github.com/syncfusion/flutter-widgets)
+- [Syncfusion Charts Documentation](https://help.syncfusion.com/flutter/chart/overview)
+- [Firebase for Flutter Documentation](https://firebase.flutter.dev/docs/overview)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [Flask Documentation](https://flask.palletsprojects.com/)
+- [flutter_osm_plugin](https://pub.dev/packages/flutter_osm_plugin)
+- [speech_to_text](https://pub.dev/packages/speech_to_text)
+
+---
+
+**NaqiAI** — Optimize urban waste management through data and artificial intelligence!
 
 ---

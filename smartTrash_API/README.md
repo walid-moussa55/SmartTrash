@@ -1,90 +1,177 @@
 # SmartTrash API
 
-SmartTrash API est une plateforme de gestion intelligente des déchets, permettant la collecte, l’analyse et la prédiction des données issues de poubelles connectées. Elle intègre des fonctionnalités avancées telles que la prédiction de remplissage, la gestion des notifications, la génération de rapports et l’optimisation des tournées de collecte.
+SmartTrash API is an intelligent waste management platform that collects, analyzes, and predicts data from connected smart trash bins. It integrates advanced features such as fill-level prediction, notification management, report generation, route optimization, AI-powered chatbot assistance, and image-based waste classification.
 
-## Fonctionnalités principales
+## Key Features
 
-- **Collecte de données en temps réel** : Synchronisation avec Firebase RTDB pour récupérer et stocker les données des poubelles.
-- **Stockage MongoDB** : Les données des poubelles sont persistées dans une base MongoDB pour l’analyse et l’historique.
-- **Prédictions avancées** :
-  - Prédiction du niveau de remplissage (`predictionLvl`)
-  - Prédiction température/humidité (`predictionTH`)
-- **Notifications intelligentes** : Envoi de notifications via Firebase Cloud Messaging lorsque certains seuils sont atteints.
-- **Optimisation des tournées** : Calcul d’itinéraires optimaux pour la collecte des déchets.
-- **Génération de rapports** : Création de rapports PDF et Markdown sur l’état du parc de poubelles et les anomalies détectées.
-- **API RESTful** : Exposition de multiples endpoints pour la gestion, l’analyse et la consultation des données.
-- **Interface web** : Un dashboard HTML/JS pour visualiser et interagir avec les données.
+- **Real-time Data Collection**: Synchronization with Firebase Realtime Database (RTDB) to retrieve and store bin data automatically.
+- **MongoDB Storage**: Bin data is persisted in a MongoDB database for historical analysis and reporting.
+- **Advanced Predictions**: Fill-level prediction (`predictionLvl`) — next-step and 7-day weekly forecasts.
+- **Weekly Resource Planning**: The `/prediction/weekly` endpoint forecasts fill levels for every bin over the next 7 days and automatically calculates the number of collection trucks, workers, and fuel liters needed per day.
+- **Trash Type Classification**: A `POST /predict/trash_type` endpoint accepts an image file and uses a **DenseNet201** deep learning model (PyTorch) to classify waste into 10 categories: `battery`, `organic`, `cardboard`, `clothes`, `glass`, `metal`, `paper`, `plastic`, `shoes`, `trash`.
+- **Smart Notifications**: Push notifications via Firebase Cloud Messaging (FCM) when fill-level thresholds are reached.
+- **Multi-level Gas Alerts**: The notification service monitors gas sensor readings and sends tiered FCM alerts:
+  - **Level 1** (low concentration): ventilation advised.
+  - **Level 2** (moderate): cut gas source, avoid flames.
+  - **Level 3** (high): forced ventilation required.
+  - **Critical / Emergency** (maximum danger): immediate evacuation alert sent to a dedicated `_emergency` FCM topic.
+- **Route Optimization**: Calculates the optimal collection itinerary from a given container location and a list of bins.
+- **Report Generation**: Creates PDF reports and Markdown pattern-usage analyses from historical bin data, including anomaly detection with AI-generated recommendations.
+- **Eco-Assistant Chatbot (RAG)**: A `/api/chat` endpoint powered by **Mistral AI** (`mistral-small-latest` by default). The chatbot is augmented with a local knowledge base (`knowledge_base.txt`) injected into the system prompt for context-aware answers about waste management.
+- **RESTful API**: Multiple endpoints for management, analytics, and data retrieval.
+- **Server URL Auto-registration**: On startup, the API automatically detects its local IP address and writes the server URL to Firebase RTDB under `app_settings/rotageServerUrl` so mobile apps can discover the server dynamically.
 
-## Structure du projet
+## Project Structure
 
-- `run.py` : Point d’entrée principal de l’API FastAPI.
-- `routers/` : Contient les routes pour la gestion des poubelles, la génération de rapports et les prédictions.
-- `services/` : Services métiers (notifications, etc.).
-- `others/` : Modèles de données, accès base, statistiques, etc.
-- `predictions/` : Modules de prédiction (niveau, température/humidité).
-- `statics/` : Fichiers statiques pour l’interface web (HTML, JS, CSS).
-- `utils/` : Fonctions utilitaires et constantes.
-- `reports/` : Génération de rapports et analyses avancées.
+```
+smartTrash_API/
+├── run.py                       # FastAPI entry point, startup logic, background loops
+├── requirements.txt
+├── .env                         # Environment variables (MISTRAL_API_KEY, etc.)
+├── routers/
+│   ├── bins.py                  # Bin analytics, route optimization, population stats
+│   ├── chatbot.py               # Eco-Assistant chatbot (Mistral AI + RAG)
+│   ├── prediction.py            # Fill-level, weekly, and trash-type predictions
+│   └── report.py                # PDF/Markdown report generation, anomaly recommendations
+├── services/
+│   ├── notification_service.py  # FCM alerts: fill-level & multi-level gas alerts
+│   └── rotage.py                # Waste collection route optimization logic
+├── others/
+│   ├── models.py                # Pydantic data models (TrashData, GasLevelBin, etc.)
+│   ├── database.py              # MongoDB connection and queries
+│   ├── population_stats.py      # Usage statistics helpers
+│   └── prediction_state.py      # Shared in-memory prediction state
+├── predictions/
+│   ├── predictionLvl.py         # Fill-level prediction (next step + 7-day)
+│   ├── predictionTH.py          # Temperature/humidity prediction
+│   └── prediction_type.py       # DenseNet201 image classifier
+├── reports/
+│   ├── rapprot_generator.py     # PDF report generator
+│   ├── paterns_usage.py         # Markdown pattern/usage analysis
+│   └── anomalie_comment.py      # AI anomaly comment generator
+├── utils/
+│   ├── constants.py             # App-wide constants and thresholds
+│   └── helper.py                # Utility functions (IP detection, type conversion)
+├── statics/                     # Web dashboard (HTML/JS/CSS) & firebase_key.json
+├── weights_pth/                 # Pre-trained model weights (DenseNet201)
+└── generated_files/             # Output directory for generated reports
+```
 
-## Principaux endpoints API
+## API Endpoints
 
-- `/` : Accueil de l’API.
-- `/update/{bin_id}` : Met à jour les données d’une poubelle.
-- `/read/{bin_id}` : Récupère les données d’une poubelle.
-- `/prediction/ht` : Prédictions température/humidité.
-- `/optimize` : Optimisation de la tournée de collecte.
-- `/generate-report` : Génère un rapport PDF.
-- `/bin-analytics` : Analyses avancées sur les poubelles.
-- `/api/population-by-bin` : Statistiques d’utilisation par poubelle.
+### Core
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | API welcome message |
+| `POST` | `/update/{bin_id}` | Update a bin's data |
+| `GET` | `/read/{bin_id}` | Read a bin's current data |
 
-## Démarrage rapide
+### Predictions
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/prediction` | Get current fill-level prediction (all bins or a specific bin) |
+| `GET` | `/prediction/weekly` | 7-day fill-level forecast + daily resource planning (trucks, workers, fuel) |
+| `POST` | `/predict/trash_type` | Classify waste type from an image (DenseNet201, 10 categories) |
 
-1. **Installer les dépendances** :
-   ```sh
-   pip install -r requirements.txt
-   ```
-2. **Configurer Firebase** :
-   - Créez un projet sur [Firebase Console](https://console.firebase.google.com/).
-   - Accédez à "Paramètres du projet" > "Comptes de service".
-   - Cliquez sur "Générer une nouvelle clé privée" pour obtenir le fichier JSON.
-   - Placez ce fichier sous le nom `firebase_key.json` dans le dossier `statics/`.
-   - Définissez l’URL de la base de données dans le fichier des constantes (`utils/constants.py`).
+### Bins & Analytics
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/optimize` | Optimize waste collection route |
+| `GET` | `/bin-analytics` | Full historical bin analytics |
+| `GET` | `/resource-management` | Current bin state for resource management |
+| `GET` | `/api/population-by-bin` | Number of users per bin |
+| `GET` | `/api/usage-by-region` | Bin usage counts grouped by region |
+| `GET` | `/api/trash-weight-correlation` | Trash level vs. weight correlation data |
+| `GET` | `/api/fill-rate-by-bin` | Average fill rate (% per hour) per bin |
 
-3. **Lancer le serveur** :
-   ```sh
-   python run.py
-   ```
-   ou
-   ```sh
-   uvicorn run:app --reload
-   ```
+### Reports
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/generate-report` | Generate and download a PDF report |
+| `GET` | `/generated-report.pdf` | Serve the last generated PDF report |
+| `GET` | `/anomaly-recommendations` | AI-generated anomaly recommendations |
+| `GET` | `/get-patterns-analysis-markdown` | Markdown pattern/usage analysis report |
 
-4. **Accéder à l’interface web** :
-   - Ouvrir `statics/index.html` dans un navigateur.
+### Chatbot
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/chat` | Eco-Assistant chatbot (Mistral AI + RAG knowledge base) |
 
-## Technologies utilisées
+## Quick Start
 
-- Python 3, FastAPI, Uvicorn
-- MongoDB, Firebase RTDB & FCM
-- Pandas, threading, asyncio
-- HTML/JS/CSS pour l’interface utilisateur
+### 1. Install Dependencies
+```sh
+pip install -r requirements.txt
+```
 
-## Auteurs
+### 2. Configure Firebase
+- Create a project on [Firebase Console](https://console.firebase.google.com/).
+- Go to **Project Settings → Service Accounts**.
+- Click **Generate new private key** to download the JSON file.
+- Place this file as `firebase_key.json` inside the `statics/` folder.
+- Set your database URL in `utils/constants.py`.
 
-- WAM Development
+### 3. Configure Environment Variables
+Create a `.env` file at the project root:
+```env
+MISTRAL_API_KEY=your_mistral_api_key_here
+MISTRAL_MODEL=mistral-small-latest   # optional, this is the default
+```
 
-## Liens utiles
+### 4. Set Up the Chatbot Knowledge Base
+Place a `knowledge_base.txt` file in the `static/` directory. This text will be automatically injected into the chatbot's system prompt to enable RAG (Retrieval-Augmented Generation) for context-aware waste management answers.
 
-- [Documentation FastAPI](https://fastapi.tiangolo.com/fr/)
-- [Documentation Firebase Admin Python](https://firebase.google.com/docs/admin/setup?hl=fr)
-- [Documentation MongoDB Python (PyMongo)](https://pymongo.readthedocs.io/en/stable/)
+### 5. Start the Server
+```sh
+python run.py
+```
+or
+```sh
+uvicorn run:app --reload
+```
+
+### 6. Access the Web Dashboard
+Open `statics/index.html` in a browser, or navigate to `http://localhost:8000`.
+
+## Background Services (Auto-started on Startup)
+
+| Service | Interval | Description |
+|---------|----------|-------------|
+| Firebase RTDB Listener | Real-time | Syncs bin data changes to MongoDB |
+| Level Prediction Loop | `LEVEL_PREDICTION_INTERVAL` | Periodically updates fill-level predictions for all bins |
+| Notification Loop | `NOTIFICATION_INTERVAL` | Checks thresholds and sends FCM alerts |
+| Server URL Registration | Once at startup | Writes the server's local IP to Firebase RTDB |
+
+## Technologies Used
+
+| Category | Technologies |
+|----------|-------------|
+| Backend | Python 3, FastAPI, Uvicorn |
+| Database | MongoDB (PyMongo), Firebase RTDB & FCM |
+| AI / ML | PyTorch, TorchVision, DenseNet201, scikit-learn, Mistral AI API |
+| Data | Pandas, NumPy |
+| Async | `asyncio`, `threading`, `httpx` |
+| Reports | ReportLab (PDF), Jinja2 |
+| Utilities | `python-dotenv`, `Pillow`, `joblib` |
+| Frontend | HTML / JS / CSS |
+
+## Authors
+
+- [WAM Development](https://github.com/walid-moussa55)
+
+## Useful Links
+
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [Firebase Admin Python SDK](https://firebase.google.com/docs/admin/setup)
+- [PyMongo Documentation](https://pymongo.readthedocs.io/en/stable/)
 - [Uvicorn](https://www.uvicorn.org/)
-- [Pandas](https://pandas.pydata.org/docs/)
-- [Console Firebase](https://console.firebase.google.com/)
-- [Documentation Python](https://docs.python.org/fr/3/)
+- [Mistral AI Documentation](https://docs.mistral.ai/)
+- [PyTorch Documentation](https://pytorch.org/docs/)
+- [Pandas Documentation](https://pandas.pydata.org/docs/)
+- [Firebase Console](https://console.firebase.google.com/)
 
 ---
 
-**SmartTrash** : Optimisez la gestion urbaine des déchets grâce à la donnée et à l’intelligence artificielle !
+**SmartTrash** — Optimize urban waste management through data intelligence and AI!
 
 ---
