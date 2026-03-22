@@ -8,11 +8,11 @@
 #include <esp_now.h>
 
 // ── WiFi ─────────────────────────────────────────────
-#define WIFI_SSID     "Bouchra✨"
-#define WIFI_PASSWORD "BOCHRA2026"
+#define WIFI_SSID     "[SSID]"
+#define WIFI_PASSWORD "[PASSWORD]"
 
 // ── API ──────────────────────────────────────────────
-const char* serverName = "http://192.168.43.184:8000/update/trash_1";
+const char* serverName = "http://[IP_ADDRESS]/update/trash_1";
 
 // ── PINS ─────────────────────────────────────────────
 #define TRIG_OBJ         4

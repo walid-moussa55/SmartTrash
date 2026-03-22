@@ -6,11 +6,11 @@
 #include <Arduino.h>
 
 // ── WiFi ────────────────────────────────────────────
-const char* ssid     = "Bouchra✨";
-const char* password = "BOCHRA2026";
+const char* ssid     = "[SSID]";
+const char* password = "[PASSWORD]";
 
 // ── API ─────────────────────────────────────────────
-const char* apiUrl = "http://192.168.43.184:8000/predict/trash_type";
+const char* apiUrl = "http://[IP_ADDRESS]/predict/trash_type";
 
 // ── MAC ESP32 PRINCIPAL ──────────────────────────────
 uint8_t receiverMAC[] = {0xBC, 0xDD, 0xC2, 0xCE, 0x09, 0x18};
