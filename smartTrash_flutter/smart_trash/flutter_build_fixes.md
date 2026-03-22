@@ -1,28 +1,21 @@
-# Flutter Android Build Error Resolutions
-
-During our session, we encountered two completely separate build errors that prevented `flutter build apk` from succeeding. 
-
-Here is the exact step-by-step documentation of what went wrong and how we fixed them, so you can apply these fixes to any future projects or if you clone this project onto a new machine.
+# Flutter Android Build Fixes
 
 ---
 
-## 🛑 Error 1: Missing Flutter Engine Artifacts
-**The Error Message:**
-```text
+## Fix 1: Missing Flutter Engine Artifacts
+
+**Issue:** `flutter build apk` fails with:
+```
 Could not find io.flutter:armeabi_v7a_release
-Searched in the following locations: google, mavenCentral, jitpack...
 ```
 
 **The Cause:**
 In newer versions of Flutter (like 3.41), the Gradle plugin dynamically injects `https://storage.googleapis.com/download.flutter.io` as a Maven repository to download the core Flutter engine. However, your `android/settings.gradle.kts` file had `repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)` configured. This strict setting blocks Gradle from using any repositories that plugins (like Flutter's) dynamically add, resulting in Gradle not knowing where to download the Flutter engine.
 
-**The Fix:**
-You must manually declare the Flutter download server inside `dependencyResolutionManagement` in `android/settings.gradle.kts`.
+**Fix:** Manually add the Flutter download URL to `android/settings.gradle.kts`:
 
-1. Open `android/settings.gradle.kts`.
-2. Find the `dependencyResolutionManagement { repositories { ... } }` block.
-3. Add the `download.flutter.io` URL to the list:
 ```kotlin
+// android/settings.gradle.kts
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
@@ -38,10 +31,11 @@ dependencyResolutionManagement {
 
 ---
 
-## 🛑 Error 2: JitPack Network Timeout
-**The Error Message:**
-```text
-Could not get resource 'https://jitpack.io/com/github/MKergall/osmbonuspack/6.9.0/osmbonuspack-6.9.0.aar'.
+## Fix 2: JitPack Timeout (osmbonuspack)
+
+**Issue:** `flutter build apk` fails with:
+```
+Could not get resource 'https://jitpack.io/com/github/MKergall/osmbonuspack/6.9.0/osmbonuspack-6.9.0.aar'
 > Read timed out
 ```
 
@@ -53,8 +47,8 @@ We bypassed JitPack entirely by downloading the required `.aar` file manually an
 
 **Step 1. Create the Local Directory Structure**
 Inside your project's `android` folder, create the exact folder structure that Maven expects for this specific library version (`6.9.0`):
-```text
-android/local_m2/com/github/MKergall/osmbonuspack/6.9.0/
+```powershell
+mkdir android\local_m2\com\github\MKergall\osmbonuspack\6.9.0
 ```
 
 **Step 2. Download the Files manually**
@@ -68,6 +62,7 @@ Download the required `.aar` file and its `.pom` metadata file from the original
 Open `android/settings.gradle.kts` and add your new local folder to the **very top** of the repositories block, so Gradle checks there *before* trying the internet.
 
 ```kotlin
+// android/settings.gradle.kts
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
@@ -83,3 +78,7 @@ dependencyResolutionManagement {
 ```
 
 By doing this, Gradle finds `osmbonuspack` on your hard drive instantly and never even attempts to contact JitPack.io.
+**Step 4. Build**
+```powershell
+flutter build apk
+```
