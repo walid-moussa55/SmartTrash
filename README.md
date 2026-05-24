@@ -9,7 +9,7 @@ Une solution complète et connectée de gestion intelligente des déchets ménag
 
 Le système monitore en temps réel le taux de remplissage, le poids, la température, l'humidité, la présence d'eau et la concentration de gaz nocifs. Il intègre un écran d'affichage physique local, une synchronisation automatique dans le cloud, une classification des déchets basée sur l'intelligence artificielle et un portail mobile interactif.
 
-> **🔄 Note d'Évolution :** Cette version intègre une refonte majeure de l'architecture originale de SmartTrash. La version historique est archivée dans la branche [`v1-legacy`](https://github.com/walid-moussa55/SmartTrash/tree/v1-legacy) à des fins de consultation.
+> **🔄 Note d'Évolution :** Cette version représente une amélioration majeure par rapport à la deuxième version de SmartTrash. La version précédente est accessible dans la branche [`version-1`](https://github.com/walid-moussa55/SmartTrash/tree/version-1) à des fins de consultation.
 
 ---
 
