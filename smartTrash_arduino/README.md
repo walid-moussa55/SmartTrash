@@ -1,210 +1,299 @@
-# SmartTrash Arduino — NaqiAI
+# SmartTrash Arduino
 
-This project controls a smart waste bin using **two ESP32 boards** working together: a main ESP32 that handles all sensors and bin logic, and an **ESP32-CAM** that captures images and uses an AI API to classify the type of waste. The two boards communicate wirelessly via **ESP-NOW**.
+Ce projet contrôle une poubelle intelligente à l'aide d'une architecture double ESP32 (principal + caméra), de capteurs et d'un écran LCD. Le système détecte le type de déchet via une caméra et IA, mesure le niveau de remplissage, le poids, l'humidité, la température, le niveau d'eau et le gaz, puis envoie ces données à un serveur via WiFi.
 
----
+## Architecture
 
-## Architecture Overview
+Le système utilise une architecture distribuée avec **deux ESP32** communiquant via ESP-NOW :
 
-```
-┌─────────────────────────────┐        ESP-NOW         ┌──────────────────────────────┐
-│   ESP32 Principal           │◄────────────────────── │   ESP32-CAM (AI Thinker)     │
-│                             │    trash_type result   │                              │
-│  • Ultrasonic sensors       │                        │  • Camera capture (JPEG)     │
-│  • DHT11 (temp/humidity)    │                        │  • Sends image to AI API     │
-│  • Gas sensor               │                        │  • Web dashboard (port 80)   │
-│  • Water level sensor       │                        │  • 5-second capture loop     │
-│  • Load cell (weight)       │                        └──────────────────────────────┘
-│  • Servo motor (lid)        │
-│  • Buzzer                   │
-│  • LCD I2C 16x2             │
-│  • HTTP POST → API server   │
-└─────────────────────────────┘
-```
+- **ESP32 Principal** : Gère tous les capteurs, l'affichage LCD, la servo, le buzzer et l'orchestration
+- **ESP32-CAM** : Caméra pour la classification d'images (détection du type de déchet via ML)
 
----
-
-## Hardware Components
-
-### ESP32 Principal (`sketch_smartTrash_esp32_principal.ino`)
-
-| Component               | Description                                      |
-|-------------------------|--------------------------------------------------|
-| ESP32                   | Main microcontroller                             |
-| HC-SR04 × 2             | Ultrasonic sensors (object detection + fill level) |
-| DHT11                   | Temperature and humidity sensor                  |
-| Gas sensor (MQ-2)       | Gas/smoke detection                              |
-| Water level sensor      | Water detection with buzzer alert                |
-| HX711 + load cell       | Weight measurement                               |
-| Servo motor             | Automatic lid opening/closing                    |
-| Buzzer                  | Audio alerts                                     |
-| LCD I2C 16×2            | Real-time display                                |
-
-### ESP32-CAM AI Thinker (`sketch_smartTrash_esp32_cam.ino`)
-
-| Component                    | Description                                           |
-|------------------------------|-------------------------------------------------------|
-| ESP32-CAM (AI Thinker)       | Camera module with integrated ESP32                   |
-| OV2640 camera                | Captures JPEG images every 5 seconds                  |
-| ESP32-CAM USB adapter board  | Plugged into the CAM — used for powering and flashing |
-
----
-
-## Pin Mapping
+## Matériel utilisé
 
 ### ESP32 Principal
-
-| Sensor / Module     | ESP32 Pin            |
-|---------------------|----------------------|
-| TRIG_OBJ            | 4                    |
-| ECHO_OBJ            | 5                    |
-| TRIG_TRASH          | 19                   |
-| ECHO_TRASH          | 18                   |
-| DHT11               | 23                   |
-| Water sensor        | 32                   |
-| Gas sensor          | 34 (A0)              |
-| HX711_DT            | 26                   |
-| HX711_SCK           | 27                   |
-| Servo               | 25                   |
-| Buzzer              | 33                   |
-| LCD I2C             | SDA: 21, SCL: 22     |
-
-### ESP32-CAM (AI Thinker)
-
-| Signal              | GPIO Pin |
-|---------------------|----------|
-| PWDN                | 32       |
-| XCLK                | 0        |
-| SIOD (SDA)          | 26       |
-| SIOC (SCL)          | 27       |
-| Y9–Y2 (data)        | 35, 34, 39, 36, 21, 19, 18, 5 |
-| VSYNC               | 25       |
-| HREF                | 23       |
-| PCLK                | 22       |
-
----
-
-## Features
-
-### ESP32 Principal
-- Measures bin fill level (ultrasonic sensor)
-- Measures waste weight (load cell + HX711)
-- Reads temperature and humidity (DHT11)
-- Detects gas/smoke levels
-- Detects water level — triggers buzzer alert if too high
-- **Intelligent lid control**: opens only if the waste type (received from the CAM via ESP-NOW) matches the bin's accepted type (`BIN_TYPE`)
-- Displays status on the LCD with WiFi and server connection icons
-- Sends all sensor data to the API server via HTTP POST every 10 seconds
+- ESP32 (carte de développement)
+- 2 x Capteur ultrason HC-SR04 (détection d'objet et niveau de poubelle)
+- Capteur DHT11 (température et humidité)
+- Capteur de gaz (MQ-2 ou similaire)
+- Capteur d'eau analogique
+- Module HX711 + cellule de charge (poids)
+- Servo-moteur (ouverture conditionnelle du couvercle)
+- Buzzer
+- Écran LCD I2C 16x2
 
 ### ESP32-CAM
-- Captures a JPEG image every 5 seconds
-- Sends the image to the AI API (`/predict/trash_type`) as a multipart HTTP POST
-- Receives the `predicted_class` (e.g. `plastic`, `paper`, `metal`, `organic`, `glass`, `cardboard`)
-- Forwards the result to the ESP32 Principal via **ESP-NOW**
-- Hosts a **web dashboard** on port 80 showing:
-  - Live last captured image
-  - Last detected waste class (color-coded)
-  - History of last 5 captures
-  - Total capture count and image sizes
+- ESP32-CAM (avec caméra OV2640)
+- LED Flash (pour meilleures photos)
+- Connexion WiFi pour API ML
 
----
+## Fonctionnalités
 
-## WiFi Configuration
+- **Classification IA des déchets** : 5 captures avec vote majoritaire (plastic, metal, paper, organic, glass, cardboard)
+- **Servo intelligent** : Ouverture du couvercle UNIQUEMENT si le type détecté correspond à la poubelle
+- **Mesure du niveau de remplissage** : Capteur ultrason avec calcul en pourcentage
+- **Mesure du poids** : Load cell avec HX711, poids avant et après dépôt
+- **Détection d'humidité et température** : Capteur DHT11
+- **Détection de gaz** : MQ-2 pour alertes
+- **Alerte buzzer eau** : Son continu si niveau d'eau > 50%
+- **Affichage LCD en temps réel** : Statut poubelle, connexions WiFi/API
+- **Envoi périodique des données** : Toutes les 10 secondes au serveur via HTTP POST
+- **Suivi des dépôts** : API pour enregistrer les événements de fermeture (type détecté, poids, points)
+- **Interface web** : Flux caméra en direct avec résultats de classification
 
-> **Important:** Both ESP32 boards and the API server must be on the **same WiFi network** for communication to work.
+## Connexions matérielles
 
-In each sketch, update the WiFi credentials:
+### ESP32 Principal (sketch_smartTrash_esp32_principal.ino)
 
+| Capteur/Module      | Broche ESP32 |
+|---------------------|-------------|
+| TRIG_OBJ (capteur objet)  | 4     |
+| ECHO_OBJ (capteur objet)  | 5     |
+| TRIG_TRASH (niveau poubelle) | 19 |
+| ECHO_TRASH (niveau poubelle) | 18 |
+| DHT11               | 23          |
+| Capteur d'eau       | 32          |
+| Capteur de gaz      | 34 (A0)     |
+| HX711_DT            | 26          |
+| HX711_SCK           | 27          |
+| Servo               | 25          |
+| Buzzer              | 33          |
+| LCD I2C             | SDA: 21, SCL: 22 |
+
+### ESP32-CAM (sketch_smartTrash_esp32_cam.ino)
+
+L'ESP32-CAM utilise la configuration caméra OV2640 standard :
+
+| Élément             | Broche/Interface |
+|---------------------|-------------|
+| Caméra OV2640       | Interface JTAG standard ESP32-CAM |
+| LED Flash           | GPIO 4      |
+| Récepteur ESP-NOW   | (communication sans fil, pas de GPIO) |
+
+## Configuration WiFi
+
+> **Important :** L'ESP32 principal et le serveur API doivent être connectés au même réseau WiFi (même routeur) pour que la communication fonctionne correctement. L'ESP32-CAM communique aussi via WiFi pour accéder à l'API ML.
+
+Modifiez les lignes suivantes dans les sketches pour adapter le SSID et le mot de passe WiFi :
+
+**ESP32 Principal :**
 ```cpp
-// ESP32 Principal
-#define WIFI_SSID     "YOUR_SSID"
-#define WIFI_PASSWORD "YOUR_PASSWORD"
-
-// ESP32-CAM
-const char* ssid     = "YOUR_SSID";
-const char* password = "YOUR_PASSWORD";
+#define WIFI_SSID     "[SSID]"
+#define WIFI_PASSWORD "[PASSWORD]"
 ```
 
----
-
-## ESP-NOW Configuration
-
-The ESP32-CAM sends the detected waste type directly to the ESP32 Principal over **ESP-NOW** (no router involved for this link).
-
-Update the ESP32 Principal's MAC address in `sketch_smartTrash_esp32_cam.ino`:
-
+**ESP32-CAM :**
 ```cpp
-uint8_t receiverMAC[] = {0xBC, 0xDD, 0xC2, 0xCE, 0x09, 0x18}; // Replace with your ESP32 Principal MAC
+const char* ssid     = "[SSID]";
+const char* password = "[PASSWORD]";
 ```
 
-To find your ESP32 Principal's MAC address, print `WiFi.macAddress()` on its serial monitor.
+## Configuration ESP-NOW
 
----
+Les deux ESP32 communiquent via **ESP-NOW** (protocole sans fil propriétaire Espressif, très rapide et peu consommateur).
 
-## API Server Configuration
+### 1. Obtenir les adresses MAC
 
-Update the server URL in each sketch:
-
-```cpp
-// ESP32 Principal — sensor data
-const char* serverName = "http://API_SERVER_IPADDRESS:8000/update/trash_1";
-
-// ESP32-CAM — waste classification
-const char* apiUrl = "http://API_SERVER_IPADDRESS:8000/predict/trash_type";
-```
-
----
-
-## Bin Type Configuration
-
-Each bin only accepts one type of waste. Set the accepted type in `sketch_smartTrash_esp32_principal.ino`:
+Chargez ce code test sur chaque ESP32 pour obtenir son adresse MAC :
 
 ```cpp
-// Options: "paper", "plastic", "metal", "glass", "organic", "cardboard"
-const String BIN_TYPE = "paper";
+void setup() {
+  Serial.begin(115200);
+  Serial.println(WiFi.macAddress()); // Affiche: XX:XX:XX:XX:XX:XX
+}
 ```
 
-When the CAM detects a waste item:
-- ✅ **Correct type** → Lid opens for 4 seconds, short success beep
-- ❌ **Wrong type** → Lid stays closed, long alert beep, LCD shows accepted type
+### 2. Configurer les MAC dans les sketches
 
----
+**Dans sketch_smartTrash_esp32_principal.ino :**
+```cpp
+uint8_t camMAC[] = {0xXX, 0xXX, 0xXX, 0xXX, 0xXX, 0xXX}; // MAC du CAM
+```
 
-## Usage
+**Dans sketch_smartTrash_esp32_cam.ino :**
+```cpp
+uint8_t receiverMAC[] = {0xXX, 0xXX, 0xXX, 0xXX, 0xXX, 0xXX}; // MAC du principal (0xFF = broadcast)
+```
 
-1. Flash `sketch_smartTrash_esp32_principal.ino` onto the **ESP32 Principal**.
-2. Flash `sketch_smartTrash_esp32_cam.ino` onto the **ESP32-CAM** (select *AI Thinker ESP32-CAM* board).
-3. Connect all sensors according to the pin tables above.
-4. Power both boards and open the Serial Monitor at **115200 baud** to see logs.
-5. Access the **CAM dashboard** at `http://<ESP32-CAM-IP>/` from any browser on the same network.
-6. Sensor data is sent to the API server every **10 seconds**.
+### 3. Format des messages
 
----
+**Message Principal → CAM (trigger) :**
+```cpp
+typedef struct {
+  char command[10]; // "SCAN"
+} TriggerMessage;
+```
 
-## Arduino Library Dependencies
+**Message CAM → Principal (résultat) :**
+```cpp
+typedef struct {
+  char trash_type[20]; // "plastic", "metal", "paper", etc.
+} TrashMessage;
+```
 
-Install the following libraries via the Arduino Library Manager:
+## Configuration des serveurs API
 
-**ESP32 Principal:**
-- `WiFi` (built-in)
-- `HTTPClient` (built-in)
-- `Wire` (built-in)
-- `DHT sensor library` — Adafruit
-- `LiquidCrystal_I2C`
-- `ESP32Servo`
-- `HX711`
-- `esp_now` (built-in with ESP32 board package)
+### API Principal (données capteurs)
 
-**ESP32-CAM:**
-- `WiFi` (built-in)
-- `HTTPClient` (built-in)
-- `WebServer` (built-in)
-- `esp_camera` (built-in with ESP32 board package)
-- `esp_now` (built-in with ESP32 board package)
+Modifiez l'URL du serveur pour pointer vers votre API :
 
----
+**ESP32 Principal :**
+```cpp
+const char* serverName = "http://[API_IP_ADDRESS]:8000/update/trash_1";
+```
 
-## Example JSON Payload (sent to API)
+### API ML (classification des déchets)
+
+L'ESP32-CAM envoie les images à l'API ML pour détection de type :
+
+**ESP32-CAM :**
+```cpp
+const char* apiUrl = "http://[API_IP_ADDRESS]:8090/predict/trash_type";
+```
+
+### API Dépôt (suivi des événements)
+
+Après validation du type de déchet, le principal envoie un événement de fermeture :
+
+**ESP32 Principal :**
+```cpp
+const char* depositCloseUrl = "http://[API_IP_ADDRESS]:8000/deposit/close";
+```
+
+#### Format du payload (dépôt) :
+```json
+{
+  "bin_id": "trash_1",
+  "weight_after": 2.350,
+  "arduino_detected_type": "plastic",
+  "deposit_event": true
+}
+```
+
+### Configuration de la poubelle
+
+Modifiez le type et l'ID de la poubelle pour correspondre à votre instance :
+
+```cpp
+const String BIN_TYPE = "paper";    // Type accepté: "plastic", "metal", "paper", etc.
+const String BIN_ID   = "trash_1";  // Doit correspondre à l'ID Firebase
+```
+
+## Utilisation
+
+### 1. Préparation des sketches
+
+#### ESP32 Principal
+- Chargez [sketch_smartTrash_esp32_principal.ino](sketch_smartTrash_esp32_principal.ino)
+- Configurez WiFi, MAC du CAM et URLs des APIs
+
+#### ESP32-CAM
+- Chargez [sketch_smartTrash_esp32_cam.ino](sketch_smartTrash_esp32_cam.ino)
+- Configurez WiFi et MAC du principal (ou broadcast 0xFF)
+- Configurez l'URL de l'API ML
+
+### 2. Branchement matériel
+- Connectez tous les capteurs au principal selon le tableau de connexions
+- Connectez la caméra à l'ESP32-CAM
+- Branchez le LED flash et les connexions de communication
+
+### 3. Montage
+1. Ouvrez le moniteur série à **115200 bauds** sur les deux ESP32 pour voir les logs
+2. Au démarrage, le principal affichera son MAC et IP
+3. Les deux ESP32 établissent la connexion WiFi
+4. Le système affichera "NaqiAI Pret!" sur l'écran LCD
+
+### 4. Fonctionnement
+1. **Détection d'objet** : Quand un objet est détecté par le capteur ultrason (< 15 cm), le principal envoie "SCAN" au CAM
+2. **Classification** : Le CAM prend 5 photos et les envoie à l'API ML
+3. **Vote majoritaire** : Le CAM calcule la classe la plus votée et renvoie le résultat
+4. **Décision servo** :
+   - ✅ **Type correct** : Servo ouvre le couvercle (4s), bip succes (2x)
+   - ❌ **Type incorrect** : Servo reste fermé, bip alerte (800ms)
+5. **Suivi** : Poids avant/après est envoyé à l'API pour le système de points
+6. **Données capteurs** : Envoi à l'API toutes les 10 secondes
+
+## Système de classification IA
+
+### Cycle de détection
+
+1. **Capture (5x)** : Le CAM prend 5 photos avec flash LED
+2. **Envoi API** : Chaque image est envoyée à l'API de classification ML
+3. **Vote majoritaire** : Les résultats de classe sont comptabilisés
+4. **Résultat gagnant** : La classe avec le plus de votes est sélectionnée
+
+### Classes reconnues
+
+```
+"plastic"   → Matière plastique
+"metal"     → Métal
+"paper"     → Papier
+"organic"   → Matière organique (compost)
+"glass"     → Verre
+"cardboard" → Carton
+"unknown"   → Type inconnu
+```
+
+### Délai de timeout
+
+Si le CAM ne répond pas dans les **8 secondes**, le système affiche "CAM timeout" sur l'écran LCD et attend une nouvelle détection.
+
+## Logique de servo et gamification
+
+### Comportement conditionnel
+
+- **Dépôt valide** (type correct) : 
+  - Servo ouvre le couvercle pendant 4 secondes
+  - Bip de succès (2 bips)
+  - Poids mesuré AVANT et APRÈS pour calculer les points gagnés
+
+- **Dépôt invalide** (type incorrect) : 
+  - Servo reste fermé
+  - Bip d'alerte (800ms continu)
+  - Dépôt enregistré avec points négatifs pour la gamification
+
+## Dépendances Arduino
+
+Installez les bibliothèques suivantes via le gestionnaire de bibliothèques Arduino :
+
+**Communes aux deux ESP32 :**
+- `WiFi`
+- `HTTPClient`
+- `esp_now.h` (ESP-NOW - déjà dans l'IDE Arduino)
+- `Arduino.h`
+
+**ESP32 Principal uniquement :**
+- `Wire` (I2C)
+- `DHT sensor library by Adafruit`
+- `LiquidCrystal_I2C by Frank de Brabander`
+- `ESP32Servo by John Burton`
+- `HX711 by Bogdan Necula`
+
+**ESP32-CAM uniquement :**
+- `esp_camera.h` (déjà dans l'IDE Arduino)
+- `WebServer.h` (déjà dans l'IDE Arduino)
+
+## Interface Web (ESP32-CAM)
+
+L'ESP32-CAM expose un serveur web accessible sur `http://[CAM_IP]:80/` :
+
+- **`/`** : Page principale avec flux caméra, classe détectée et couleur associée
+- **`/live.jpg`** : Image JPEG brute de la dernière capture
+- **Auto-refresh** : Page HTML se rafraîchit toutes les 3 secondes
+
+### Couleurs par classe
+
+| Classe    | Couleur (hex) |
+|-----------|-----------|
+| plastic   | #3498db (bleu) |
+| metal     | #95a5a6 (gris) |
+| paper     | #f39c12 (orange) |
+| organic   | #27ae60 (vert) |
+| glass     | #1abc9c (cyan) |
+| cardboard | #e67e22 (orange foncé) |
+| unknown   | #8e44ad (violet) |
+
+## Exemple de trame JSON envoyée
 
 ```json
 {
@@ -212,7 +301,7 @@ Install the following libraries via the Arduino Library Manager:
   "gaz_level": 5,
   "humidity": 45.2,
   "temperature": 23.1,
-  "location": { "latitude": 32.376553, "longitude": -6.320284 },
+  "location": {"latitude": 32.8811, "longitude": -6.9063},
   "name": "Bin 1 - Lobby",
   "trash_level": 80,
   "trash_type": "plastic",
@@ -222,23 +311,57 @@ Install the following libraries via the Arduino Library Manager:
 }
 ```
 
-> `trash_type` is now dynamically set from the waste classification result received from the ESP32-CAM.
+## Dépannage
 
----
+### Problèmes courants
 
-## Useful Links
+| Problème | Cause probable | Solution |
+|----------|--------|----------|
+| ESP-NOW : Message non reçu | MAC incorrect ou ESP-NOW non initialisé | Vérifiez les adresses MAC avec `WiFi.macAddress()`, redémarrez les deux ESP32 |
+| "CAM timeout" sur LCD | CAM ne répond pas dans les 8s | Vérifiez que le CAM est allumé, vérifiez les adresses MAC, vérifiez le WiFi |
+| Servo ne s'ouvre pas | Type détecté ≠ BIN_TYPE | Vérifiez la valeur de `BIN_TYPE` dans le principal, testez la classification avec des images claires |
+| Pas de données capteurs | DHT ou HX711 non détectés | Vérifiez les branchements, testez chaque capteur individuellement |
+| LCD vide | Adresse I2C incorrecte | Lancez un scan I2C pour trouver l'adresse (généralement 0x27) |
+| API non répondante | Adresse IP ou port incorrect | Vérifiez `serverName`, `depositCloseUrl`, `apiUrl` et testez les endpoints avec curl |
+| Servo trembleuse | Alimention insuffisante | Utilisez une alimentation externe pour le servo (5V, 1A minimum) |
 
-- [ESP32 Official Documentation (Espressif)](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/)
-- [HX711 Arduino Library](https://github.com/bogde/HX711)
-- [DHT Sensor Library (Adafruit)](https://github.com/adafruit/DHT-sensor-library)
-- [LiquidCrystal_I2C Library](https://github.com/johnrickman/LiquidCrystal_I2C)
-- [ESP32Servo Library](https://github.com/jkb-git/ESP32Servo)
-- [ESP32 HTTPClient Examples](https://randomnerdtutorials.com/esp32-http-get-post-arduino/)
-- [ESP32-CAM Getting Started](https://randomnerdtutorials.com/esp32-cam-video-streaming-web-server-camera-home-assistant/)
-- [ESP-NOW Documentation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/network/esp_now.html)
+### Débogage
 
----
+#### 1. Moniteur Série
+- **Principal** : Affiche les mesures des capteurs, statuts ESP-NOW, résultats API
+- **CAM** : Affiche les captures, les appels API ML, le vote majoritaire
 
-## Author
+#### 2. Logs utiles à vérifier
+```
+Principal:
+  "WiFi OK — IP: 192.168.x.x"
+  "MAC: XX:XX:XX:XX:XX:XX"
+  "ESP-NOW OK"
+  "Objet detecte a X.X cm"
+  "Reponse CAM: [type] (en Xms)"
 
-Project developed by [**WAM Development**](https://github.com/walid-moussa55).
+CAM:
+  "Camera init OK"
+  "ESP-NOW: SCAN recu"
+  "Capture 1/5..."
+  "Votes: plastic=4 metal=1 → WINNER: plastic (4/5)"
+```
+
+#### 3. Test des connexions
+- Testez chaque capteur individuellement
+- Testez ESP-NOW avec un code minimal (envoi/réception de texte)
+- Testez l'API ML en envoyant une image avec curl
+- Testez la connectivité WiFi en pingant le serveur API
+
+## Liens utiles
+
+- [Documentation officielle ESP32 (Espressif)](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/)
+- [Bibliothèque Arduino HX711](https://github.com/bogde/HX711)
+- [Bibliothèque Arduino DHT sensor](https://github.com/adafruit/DHT-sensor-library)
+- [Bibliothèque LiquidCrystal_I2C](https://github.com/johnrickman/LiquidCrystal_I2C)
+- [Bibliothèque ESP32Servo](https://github.com/jkb-git/ESP32Servo)
+- [Exemples de requêtes HTTPClient Arduino](https://randomnerdtutorials.com/esp32-http-get-post-arduino/)
+
+## Auteur
+
+Projet réalisé par WAM Development.

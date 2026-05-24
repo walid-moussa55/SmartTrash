@@ -8,6 +8,211 @@ import 'package:naqi_ai/app_theme.dart';
 import 'package:naqi_ai/app_settings.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+enum ChatLanguage { english, french, arabic, darija }
+
+class LanguageConfig {
+  final String code;
+  final String name;
+  final String flag;
+  final String speechLocale;
+  final String systemPrompt;
+  final String greeting;
+  final String listeningHint;
+  final String inputHint;
+  final String errorServerNotConfigured;
+  final String errorNoResponse;
+  final String errorConnection;
+  final TextDirection textDirection;
+
+  const LanguageConfig({
+    required this.code,
+    required this.name,
+    required this.flag,
+    required this.speechLocale,
+    required this.systemPrompt,
+    required this.greeting,
+    required this.listeningHint,
+    required this.inputHint,
+    required this.errorServerNotConfigured,
+    required this.errorNoResponse,
+    required this.errorConnection,
+    this.textDirection = TextDirection.ltr,
+  });
+}
+
+final Map<ChatLanguage, LanguageConfig> languageConfigs = {
+  ChatLanguage.english: const LanguageConfig(
+    code: 'en',
+    name: 'English',
+    flag: '🇬🇧',
+    speechLocale: 'en_US',
+    systemPrompt: """You are the Eco-Assistant of SmartBin IoT / NaqiAI, developed for Khouribga, Morocco.
+
+ROLE: Answer questions about SmartBin IoT system, waste management, and recycling using ONLY the knowledge base provided.
+
+SMARTBIN FACTS:
+• IoT sensors: HC-SR04 ultrasonic (fill level), MQ-x gas detector, DHT11 (temp/humidity), load cell (weight), GPS
+• ESP32 microcontroller with auto-opening lid via servo motor
+• App levels: Admin (dashboard, analytics), Workers (optimized routes), Citizens (bin locations)
+• AI: LSTM (fill prediction), DenseNet201 (waste classification), NLP (report generation)
+• Route optimization: Dijkstra algorithm
+• 6 zones in Khouribga: Centre-ville, Hay El Qods, Hay El Massira, Zone Industrielle, Hay Salam, Zone Universitaire
+
+RESPONSE STYLE:
+• Be concise (2-4 sentences max)
+• Use emojis sparingly (1-2 per response)
+• Give specific numbers/facts from knowledge base
+• If info not in knowledge base, say "I don't have that specific information"
+
+EXAMPLE:
+User: "How many smart bins in the city center?"
+Assistant: "The city center (Zone 1) has 35 smart bins! 🗑️ This zone has the highest density due to commercial activity, with collection twice daily at 6AM and 6PM."
+
+DO NOT answer questions unrelated to SmartBin/waste/recycling.""",
+    greeting: "Hello! 🌿 I'm your SmartBin Eco-Assistant. "
+        "Ask me about waste sorting, the SmartBin system, or tap the mic to talk!",
+    listeningHint: "🎤 I'm listening...",
+    inputHint: "Ask about SmartBin...",
+    errorServerNotConfigured: "Error: Server URL not configured.",
+    errorNoResponse: "Sorry, I couldn't formulate a response.",
+    errorConnection: "Connection refused. Make sure the NaqiAI server is running.",
+  ),
+  ChatLanguage.french: const LanguageConfig(
+    code: 'fr',
+    name: 'Français',
+    flag: '🇫🇷',
+    speechLocale: 'fr_FR',
+    systemPrompt: """Tu es l'Eco-Assistant de SmartBin IoT / NaqiAI, développé pour Khouribga, Maroc.
+
+RÔLE : Répondre aux questions sur SmartBin IoT, gestion des déchets et recyclage en utilisant UNIQUEMENT la base de connaissances.
+
+FAITS SMARTBIN :
+• Capteurs IoT : HC-SR04 ultrason (niveau), MQ-x gaz, DHT11 (temp/humidité), cellule de charge (poids), GPS
+• Microcontrôleur ESP32 avec couvercle auto-ouvrant via servomoteur
+• Niveaux app : Admin (tableau de bord), Workers (itinéraires optimisés), Citoyens (localisation poubelles)
+• IA : LSTM (prédiction remplissage), DenseNet201 (classification déchets), NLP (génération rapports)
+• Optimisation routes : algorithme Dijkstra
+• 6 zones à Khouribga : Centre-ville, Hay El Qods, Hay El Massira, Zone Industrielle, Hay Salam, Zone Universitaire
+
+STYLE DE RÉPONSE :
+• Sois concis (2-4 phrases max)
+• Utilise des emojis avec modération (1-2 par réponse)
+• Donne des chiffres/faits précis de la base de connaissances
+• Si info absente, dis "Je n'ai pas cette information spécifique"
+
+EXEMPLE :
+User: "Combien de poubelles au centre-ville ?"
+Assistant: "Le centre-ville (Zone 1) compte 35 poubelles intelligentes ! 🗑️ C'est la zone la plus dense avec collecte 2 fois par jour à 6h et 18h."
+
+NE RÉPONDS PAS aux questions sans rapport avec SmartBin/déchets/recyclage.""",
+    greeting: "Bonjour ! 🌿 Je suis l'Eco-Assistant SmartBin. "
+        "Demandez-moi comment trier vos déchets ou des infos sur SmartBin !",
+    listeningHint: "🎤 Je vous écoute...",
+    inputHint: "Question sur SmartBin...",
+    errorServerNotConfigured: "Erreur : URL du serveur non configurée.",
+    errorNoResponse: "Désolé, je n'ai pas pu formuler de réponse.",
+    errorConnection: "Connexion refusée. Assurez-vous que le serveur NaqiAI est lancé.",
+  ),
+  ChatLanguage.arabic: const LanguageConfig(
+    code: 'ar',
+    name: 'العربية',
+    flag: '🇸🇦',
+    speechLocale: 'ar_SA',
+    textDirection: TextDirection.rtl,
+    systemPrompt: """أنت المساعد البيئي لنظام SmartBin IoT / NaqiAI، المطوّر لمدينة خريبكة، المغرب.
+
+الدور: أجب على الأسئلة المتعلقة بنظام SmartBin IoT وإدارة النفايات وإعادة التدوير باستخدام قاعدة المعرفة المقدمة فقط.
+
+معلومات SmartBin:
+• المستشعرات: HC-SR04 فوق صوتي (مستوى الامتلاء)، كاشف غاز MQ-x، DHT11 (الحرارة/الرطوبة)، خلية وزن، GPS
+• متحكم ESP32 مع غطاء يفتح تلقائياً بواسطة محرك سيرفو
+• مستويات التطبيق: المسؤول (لوحة التحكم)، العمال (المسارات المحسّنة)، المواطنون (مواقع الحاويات)
+• الذكاء الاصطناعي: LSTM (توقع الامتلاء)، DenseNet201 (تصنيف النفايات)، NLP (إنشاء التقارير)
+• تحسين المسارات: خوارزمية Dijkstra
+• 6 مناطق في خريبكة: وسط المدينة، حي القدس، حي المسيرة، المنطقة الصناعية، حي السلام، المنطقة الجامعية
+
+أسلوب الإجابة:
+• كن موجزاً (2-4 جمل كحد أقصى)
+• استخدم الرموز التعبيرية باعتدال (1-2 لكل إجابة)
+• أعطِ أرقاماً وحقائق دقيقة من قاعدة المعرفة
+• إذا لم تكن المعلومة موجودة، قل "ليس لديّ هذه المعلومة المحددة"
+
+مثال:
+المستخدم: "كم عدد الحاويات الذكية في وسط المدينة؟"
+المساعد: "يوجد في وسط المدينة (المنطقة 1) عدد 35 حاوية ذكية! 🗑️ هذه المنطقة الأكثر كثافة ويتم الجمع مرتين يومياً في الساعة 6 صباحاً و6 مساءً."
+
+مثال آخر:
+المستخدم: "ما هي المستشعرات المستخدمة؟"
+المساعد: "تحتوي الحاوية الذكية على عدة مستشعرات 📡: مستشعر فوق صوتي HC-SR04 لقياس مستوى الامتلاء، كاشف غاز MQ-x للغازات الخطرة، DHT11 للحرارة والرطوبة، وخلية وزن لقياس كتلة النفايات."
+
+لا تُجب على أسئلة لا علاقة لها بـ SmartBin أو النفايات أو إعادة التدوير.""",
+    greeting: "مرحباً! 🌿 أنا المساعد البيئي SmartBin. "
+        "اسألني عن فرز النفايات أو نظام SmartBin!",
+    listeningHint: "🎤 أنا أستمع...",
+    inputHint: "اسأل عن SmartBin...",
+    errorServerNotConfigured: "خطأ: لم يتم تكوين عنوان الخادم.",
+    errorNoResponse: "عذراً، لم أتمكن من صياغة رد.",
+    errorConnection: "تم رفض الاتصال. تأكد من تشغيل خادم NaqiAI.",
+  ),
+  ChatLanguage.darija: const LanguageConfig(
+    code: 'darija',
+    name: 'Darija',
+    flag: '🇲🇦',
+    speechLocale: 'ar_MA',
+    systemPrompt: """Nta l'Eco-Assistant dyal SmartBin IoT / NaqiAI, li tdar l mdinet Khouribga, lMghrib.
+
+DORK: Jawb 3la les questions dyal SmartBin IoT, gestion dyal zbel w recyclage. Khdem GHIR l'infos men base de connaissances.
+
+MA3LOUMAT SMARTBIN:
+• Capteurs: HC-SR04 ultrason (niveau), MQ-x gaz, DHT11 (s5ana/rtoba), cellule de poids, GPS
+• ESP32 m3a couvercle kay7ell bou7dou b servomoteur
+• Niveaux dyal l'app: Admin (tableau de bord), Workers (routes optimisées), Citoyens (localisation poubelles)
+• IA: LSTM (prédiction remplissage), DenseNet201 (classification zbel), NLP (génération rapports)
+• Optimisation routes: algorithme Dijkstra
+• 6 zones f Khouribga: Centre-ville (35 poubelle), Hay El Qods (22), Hay El Massira (18), Zone Industrielle (15), Hay Salam (12), Zone Universitaire (8)
+
+KIFACH TJAWB:
+• Kon mokhtssar (2-4 phrases max)
+• Dir emojis chwiya (1-2 f kol jawab)
+• 3ti chi9am w faits précis men base de connaissances
+• Ila ma3ndk l'info, gol "Ma3ndich had l'info"
+
+DARIJA = Moroccan dialect, maktoba b lettres latines (franco-arabe). Khdem kalimaat darija 7a9i9iya:
+• zbel = déchets/ordures
+• poubelle = sndou9/tanka
+• kay7ell = s'ouvre
+• s5ana = température/chaleur
+• rtoba = humidité
+• nqi = propre
+• khawi = vide
+• 3amr = plein
+• jma3 = collecter
+
+EXEMPLES DYAL JAWABAT MEZYANIN:
+
+User: "Ch7al men poubelle f centre-ville?"
+Assistant: "F centre-ville (Zone 1) kaynin 35 poubelle intelligente! 🗑️ Had zone fiha bzaf dyal nass, w kayjm3ou zbel jouj mrrat f nhar: 6 dyal sba7 w 6 dyal l3chiya."
+
+User: "Chnou hiya les capteurs?"
+Assistant: "Poubelle SmartBin fiha bzaf dyal capteurs 📡: HC-SR04 bach n3rfou wach 3amra wla khawya, capteur dyal gaz bach ndetectiwi gaz khatir, DHT11 l s5ana w rtoba, w capteur dyal lwezn."
+
+User: "Kifach kaykhdm système?"
+Assistant: "SmartBin kaykhdm b ESP32 li howa l'cerveau 🧠. Capteurs kayjm3ou data (niveau, gaz, s5ana...), w kaytssift l cloud. L'app katwerri kolchi l admin w workers, w Dijkstra kayoptimisa routes dyal camions."
+
+User: "Chnou hiya IA li kayna?"
+Assistant: "Kaynin 3 modèles dyal IA 🤖: LSTM li kayt-prédicti mta y3mr zbel, DenseNet201 li kayfrz type dyal zbel (plastique, verre...), w NLP li kaygénéri rapports automatiquement."
+
+MA TRDDCH 3LA LES QUESTIONS LI MA3NDHOMCH 3ALA9A B SMARTBIN/ZBEL/RECYCLAGE.""",
+    greeting: "Salam! 🌿 Ana l'Eco-Assistant dyal SmartBin. "
+        "Swelni 3la tri dyal zbel wla système SmartBin!",
+    listeningHint: "🎤 Kansmaa3 lik...",
+    inputHint: "Swel 3la SmartBin...",
+    errorServerNotConfigured: "Khata: URL dyal serveur makaynach.",
+    errorNoResponse: "Smahli, ma9dertch njawbek.",
+    errorConnection: "Connection refusée. T2akked belli serveur NaqiAI khdam.",
+  ),
+};
+
 class ChatMessage {
   final String text;
   final bool isUser;
@@ -37,16 +242,24 @@ class _EcoAssistantScreenState extends State<EcoAssistantScreen> with TickerProv
 
   final List<Map<String, String>> _chatHistory = [];
 
+  // ── Palette NaqiAI Stricte ──
+  static const Color _kBg       = Color(0xFFF5F3EE);
+  static const Color _kSurface  = Color(0xFFFFFFFF);
+  static const Color _kBorder   = Color(0xFFE2DDD5);
+  static const Color _kPale     = Color(0xFFDCF0E0);
+  static const Color _kLight    = Color(0xFF8EBF93);
+  static const Color _kMid      = Color(0xFF5C8E60);
+  static const Color _kPrimary  = Color(0xFF2A4A30);
+  static const Color _kAlertPale = Color(0xFFF0E8DC);
+  static const Color _kAlert    = Color(0xFFB86B2A);
+  static const Color _kTextSec  = Color(0xFF7A8A7C);
+
   late AnimationController _pulseController;
   late AnimationController _dotsController;
 
-  final String _systemPrompt = """Tu es l'Eco-Assistant de l'application NaqiAI. 
-Tu parles français. Ton but est d'aider les citoyens à mieux trier leurs déchets, 
-à comprendre l'importance du recyclage, et à protéger l'environnement de leur ville. 
-Les poubelles de la ville acceptent : Plastique, Verre, Papier/Carton, Organique, et Électronique. 
-Si la personne demande comment jeter un objet, dis-lui dans quelle poubelle le mettre. 
-Sois concis, très amical. Utilise des emojis. Ne réponds pas aux questions hors sujet 
-(hors écologie/recyclage/déchets).""";
+  // Language selection
+  ChatLanguage _selectedLanguage = ChatLanguage.french;
+  LanguageConfig get _langConfig => languageConfigs[_selectedLanguage]!;
 
   @override
   void initState() {
@@ -82,11 +295,78 @@ Sois concis, très amical. Utilise des emojis. Ne réponds pas aux questions hor
   }
 
   void _initChat() {
-    _chatHistory.add({"role": "system", "content": _systemPrompt});
-    _addMessage(
-      "Bonjour ! 🌿 Je suis votre Eco-Assistant NaqiAI. "
-      "Demandez-moi comment trier un déchet, ou appuyez sur le micro pour me parler !",
-      false,
+    _chatHistory.add({"role": "system", "content": _langConfig.systemPrompt});
+    _addMessage(_langConfig.greeting, false);
+  }
+
+  void _changeLanguage(ChatLanguage newLanguage) {
+    if (newLanguage == _selectedLanguage) return;
+    
+    setState(() {
+      _selectedLanguage = newLanguage;
+      _messages.clear();
+      _chatHistory.clear();
+    });
+    _initChat();
+  }
+
+  void _showLanguageSelector() {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.3),
+      builder: (context) => Align(
+        alignment: Alignment.topCenter,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 80, left: 20, right: 20),
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 450,
+              decoration: BoxDecoration(
+                color: _kAlertPale,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: _kBorder, width: 1.5),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 30, offset: const Offset(0, 10))],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      'CHOISIR LA LANGUE',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: _kPrimary, letterSpacing: 1.5),
+                    ),
+                  ),
+                  Divider(color: _kBorder.withOpacity(0.5), height: 1),
+                  ...ChatLanguage.values.map((lang) {
+                    final config = languageConfigs[lang]!;
+                    final isSelected = lang == _selectedLanguage;
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                      leading: Text(config.flag, style: const TextStyle(fontSize: 24)),
+                      title: Text(
+                        config.name,
+                        style: TextStyle(
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                          color: isSelected ? _kPrimary : _kTextSec,
+                          fontSize: 15,
+                        ),
+                      ),
+                      trailing: isSelected ? Icon(Icons.check_circle_rounded, color: _kPrimary, size: 20) : null,
+                      onTap: () {
+                        Navigator.pop(context); // Disparaît automatiquement
+                        _changeLanguage(lang);
+                      },
+                    );
+                  }),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -118,7 +398,7 @@ Sois concis, très amical. Utilise des emojis. Ne réponds pas aux questions hor
     try {
       final serverUrl = _appSettings.rotageServerUrl;
       if (serverUrl == null || serverUrl.isEmpty) {
-        _addMessage("Erreur : URL du serveur non configurée.", false);
+        _addMessage(_langConfig.errorServerNotConfigured, false);
         return;
       }
 
@@ -135,10 +415,10 @@ Sois concis, très amical. Utilise des emojis. Ne réponds pas aux questions hor
           _addMessage(aiResponse, false);
           _chatHistory.add({"role": "assistant", "content": aiResponse});
         } else {
-          _addMessage("Désolé, je n'ai pas pu formuler de réponse.", false);
+          _addMessage(_langConfig.errorNoResponse, false);
         }
       } else {
-        String errorMsg = "Erreur serveur (Code ${response.statusCode}).";
+        String errorMsg = "Error (Code ${response.statusCode}).";
         try {
           final Map<String, dynamic> errData = jsonDecode(utf8.decode(response.bodyBytes));
           if (errData.containsKey('detail')) errorMsg = "⚠️ ${errData['detail']}";
@@ -146,7 +426,7 @@ Sois concis, très amical. Utilise des emojis. Ne réponds pas aux questions hor
         _addMessage(errorMsg, false);
       }
     } catch (e) {
-      _addMessage("Connexion refusée. Assurez-vous que le serveur NaqiAI est lancé.", false);
+      _addMessage(_langConfig.errorConnection, false);
       debugPrint("Chat error: $e");
     } finally {
       if (mounted) setState(() => _isAiTyping = false);
@@ -191,7 +471,7 @@ Sois concis, très amical. Utilise des emojis. Ne réponds pas aux questions hor
             }
           }
         },
-        localeId: 'fr_FR',
+        localeId: _langConfig.speechLocale,
         listenOptions: stt.SpeechListenOptions(listenMode: stt.ListenMode.dictation),
       );
     } else {
@@ -215,15 +495,49 @@ Sois concis, très amical. Utilise des emojis. Ne réponds pas aux questions hor
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool usePopup = kIsWeb && screenWidth > 700;
 
+    Widget content = _buildMainUI();
+
+    if (usePopup) {
+      return Scaffold(
+        backgroundColor: Colors.black.withOpacity(0.05),
+        body: Center(
+          child: Container(
+            width: screenWidth * 0.9,
+            constraints: const BoxConstraints(maxWidth: 1000),
+            margin: const EdgeInsets.symmetric(vertical: 24),
+            decoration: BoxDecoration(
+              color: _kBg,
+              borderRadius: BorderRadius.circular(32),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 40, offset: const Offset(0, 15)),
+              ],
+              border: Border.all(color: _kBorder, width: 1),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(32),
+              child: content,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return content;
+  }
+
+  Widget _buildMainUI() {
+    final theme = Theme.of(context);
+    
     return Scaffold(
+      backgroundColor: _kBg,
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppTheme.primaryPurple, AppTheme.primaryPurple.withAlpha(180)],
+              colors: [_kPrimary, _kMid],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -231,65 +545,105 @@ Sois concis, très amical. Utilise des emojis. Ne réponds pas aux questions hor
         ),
         title: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.white.withAlpha(30),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.psychology, color: Colors.white, size: 22),
-            ),
-            const SizedBox(width: 10),
+            _buildLogo(),
+            const SizedBox(width: 14),
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Eco-Assistant', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white)),
-                Text('Powered by Mistral AI', style: TextStyle(fontSize: 11, color: Colors.white70)),
+                Text('Eco-Assistant', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.2)),
+                Text('Intelligence Environnementale', style: TextStyle(fontSize: 10, color: Colors.white70, fontWeight: FontWeight.w600)),
               ],
             ),
           ],
         ),
+        actions: [
+          _buildLanguageButton(),
+        ],
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDark
-                ? [const Color(0xFF1a1a2e), const Color(0xFF16213e)]
-                : [Colors.grey.shade50, Colors.white],
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final msg = _messages[index];
+                return _AnimatedChatBubble(
+                  key: msg.key,
+                  text: msg.text,
+                  isUser: msg.isUser,
+                );
+              },
+            ),
           ),
-        ),
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(16),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  final msg = _messages[index];
-                  return _AnimatedChatBubble(
-                    key: msg.key,
-                    text: msg.text,
-                    isUser: msg.isUser,
-                    theme: theme,
-                  );
-                },
+          if (_isAiTyping) _buildTypingIndicator(),
+          _buildInputArea(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLogo() {
+    return Container(
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          const Icon(Icons.eco_rounded, color: Colors.white, size: 22),
+          Positioned(
+            right: -2, top: -2,
+            child: Container(
+              width: 8, height: 8,
+              decoration: BoxDecoration(
+                color: _kLight,
+                shape: BoxShape.circle,
+                border: Border.all(color: _kPrimary, width: 1.5),
               ),
             ),
-            if (_isAiTyping) _buildTypingIndicator(theme),
-            _buildInputArea(theme, isDark),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageButton() {
+    return GestureDetector(
+      onTap: _showLanguageSelector,
+      child: Container(
+        margin: const EdgeInsets.only(right: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.15)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_langConfig.flag, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 8),
+            Text(
+              _langConfig.name.toUpperCase(),
+              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.expand_more_rounded, color: Colors.white70, size: 16),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTypingIndicator(ThemeData theme) {
+  Widget _buildTypingIndicator() {
     return Padding(
       padding: const EdgeInsets.only(left: 20, bottom: 8),
       child: Align(
@@ -300,12 +654,13 @@ Sois concis, très amical. Utilise des emojis. Ne réponds pas aux questions hor
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: theme.cardTheme.color ?? AppTheme.darkCard,
+                color: Colors.white,
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
                 ),
+                border: Border.all(color: _kBorder.withOpacity(0.5)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -319,7 +674,7 @@ Sois concis, très amical. Utilise des emojis. Ne réponds pas aux questions hor
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryPurple.withAlpha((120 + 135 * math.sin(phase * math.pi)).toInt()),
+                          color: _kPrimary.withAlpha((120 + 135 * math.sin(phase * math.pi)).toInt()),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -334,16 +689,19 @@ Sois concis, très amical. Utilise des emojis. Ne réponds pas aux questions hor
     );
   }
 
-  Widget _buildInputArea(ThemeData theme, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1a1a2e) : Colors.white,
-        boxShadow: [
-          BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 10, offset: const Offset(0, -3)),
-        ],
-      ),
-      child: SafeArea(
+  Widget _buildInputArea() {
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: _kBg,
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: _kBorder.withValues(alpha: 0.6)),
+          boxShadow: [
+            BoxShadow(color: _kTextSec.withValues(alpha: 0.1), blurRadius: 15, offset: const Offset(0, 4)),
+          ],
+        ),
         child: Row(
           children: [
             // Voice Input Button
@@ -352,30 +710,30 @@ Sois concis, très amical. Utilise des emojis. Ne réponds pas aux questions hor
               child: AnimatedBuilder(
                 animation: _pulseController,
                 builder: (context, child) {
-                  final scale = _isListening ? 1.0 + 0.08 * math.sin(_pulseController.value * math.pi) : 1.0;
+                  final scale = _isListening ? 1.0 + 0.1 * math.sin(_pulseController.value * math.pi) : 1.0;
                   return Transform.scale(scale: scale, child: child);
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     gradient: _isListening
-                        ? LinearGradient(colors: [AppTheme.accentRed, AppTheme.accentRed.withAlpha(180)])
+                        ? const LinearGradient(colors: [_kAlert, Color(0xFFD94E2B)])
                         : null,
-                    color: _isListening ? null : (isDark ? Colors.white.withAlpha(10) : Colors.grey.shade100),
+                    color: _isListening ? null : _kBg,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: _isListening ? AppTheme.accentRed.withAlpha(100) : AppTheme.primaryPurple.withAlpha(60),
-                      width: 2,
+                      color: _isListening ? _kAlert : _kBorder,
+                      width: 1.5,
                     ),
                     boxShadow: _isListening
-                        ? [BoxShadow(color: AppTheme.accentRed.withAlpha(80), blurRadius: 15, spreadRadius: 2)]
+                        ? [BoxShadow(color: _kAlert.withAlpha(60), blurRadius: 12, spreadRadius: 1)]
                         : [],
                   ),
                   child: Icon(
-                    _isListening ? Icons.mic : Icons.mic_none,
-                    color: _isListening ? Colors.white : AppTheme.primaryPurple,
-                    size: 24,
+                    _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
+                    color: _isListening ? Colors.white : _kPrimary,
+                    size: 22,
                   ),
                 ),
               ),
@@ -385,35 +743,39 @@ Sois concis, très amical. Utilise des emojis. Ne réponds pas aux questions hor
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withAlpha(8) : Colors.grey.shade100,
+                  color: _kBg,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppTheme.primaryPurple.withAlpha(30)),
                 ),
                 child: TextField(
                   controller: _textController,
+                  textDirection: _langConfig.textDirection,
+                  style: const TextStyle(fontSize: 15, color: _kPrimary, fontWeight: FontWeight.w600),
                   decoration: InputDecoration(
-                    hintText: _isListening ? "🎤 Je vous écoute..." : "Demandez comment trier...",
-                    hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade500),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    hintText: _isListening ? _langConfig.listeningHint : _langConfig.inputHint,
+                    hintStyle: TextStyle(color: _kTextSec.withOpacity(0.5), fontSize: 14),
+                    filled: true,
+                    fillColor: _kBg,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   ),
                   onSubmitted: _sendMessage,
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             // Send Button
             GestureDetector(
               onTap: () => _sendMessage(_textController.text),
               child: Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppTheme.primaryPurple, AppTheme.primaryPurple.withAlpha(180)],
-                  ),
+                  color: _kPrimary,
                   shape: BoxShape.circle,
                   boxShadow: [
-                    BoxShadow(color: AppTheme.primaryPurple.withAlpha(60), blurRadius: 8, offset: const Offset(0, 3)),
+                    BoxShadow(color: _kPrimary.withAlpha(40), blurRadius: 8, offset: const Offset(0, 3)),
                   ],
                 ),
                 child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
@@ -430,13 +792,11 @@ Sois concis, très amical. Utilise des emojis. Ne réponds pas aux questions hor
 class _AnimatedChatBubble extends StatefulWidget {
   final String text;
   final bool isUser;
-  final ThemeData theme;
 
   const _AnimatedChatBubble({
     required super.key,
     required this.text,
     required this.isUser,
-    required this.theme,
   });
 
   @override
@@ -483,30 +843,29 @@ class _AnimatedChatBubbleState extends State<_AnimatedChatBubble>
             margin: const EdgeInsets.symmetric(vertical: 4),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              gradient: widget.isUser
-                  ? LinearGradient(colors: [AppTheme.primaryPurple, AppTheme.primaryPurple.withAlpha(200)])
-                  : null,
-              color: widget.isUser ? null : (widget.theme.cardTheme.color ?? AppTheme.darkCard),
+              color: widget.isUser ? _EcoAssistantScreenState._kPrimary : Colors.white,
               borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(18),
-                topRight: const Radius.circular(18),
-                bottomLeft: widget.isUser ? const Radius.circular(18) : const Radius.circular(4),
-                bottomRight: widget.isUser ? const Radius.circular(4) : const Radius.circular(18),
+                topLeft: const Radius.circular(20),
+                topRight: const Radius.circular(20),
+                bottomLeft: widget.isUser ? const Radius.circular(20) : const Radius.circular(4),
+                bottomRight: widget.isUser ? const Radius.circular(4) : const Radius.circular(20),
               ),
+              border: widget.isUser ? null : Border.all(color: _EcoAssistantScreenState._kBorder.withOpacity(0.5)),
               boxShadow: [
                 BoxShadow(
-                  color: (widget.isUser ? AppTheme.primaryPurple : Colors.black).withAlpha(20),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+                  color: (widget.isUser ? _EcoAssistantScreenState._kPrimary : Colors.black).withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
             child: Text(
               widget.text,
               style: TextStyle(
-                color: widget.isUser ? Colors.white : (widget.theme.textTheme.bodyLarge?.color ?? Colors.white),
+                color: widget.isUser ? Colors.white : _EcoAssistantScreenState._kPrimary,
                 fontSize: 15,
+                fontWeight: FontWeight.w500,
                 height: 1.4,
               ),
             ),

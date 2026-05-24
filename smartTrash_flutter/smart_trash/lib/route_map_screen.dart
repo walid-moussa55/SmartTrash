@@ -1,4 +1,3 @@
-// lib/route_map_screen.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
@@ -7,6 +6,16 @@ import 'package:naqi_ai/app_settings.dart';
 import 'package:naqi_ai/trash_bin_model.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:geolocator/geolocator.dart';
+
+// --- Visual Constants (NaqiAI System) ---
+const _kBg = Color(0xFFF5F3EE);
+const _kSurface = Color(0xFFFFFFFF);
+const _kBorder = Color(0xFFE2DDD5);
+const _kPale = Color(0xFFDCF0E0);
+const _kMid = Color(0xFF5C8E60);
+const _kPrimary = Color(0xFF2A4A30);
+const _kTextSec = Color(0xFF7A8A7C);
+const _kAlert = Color(0xFFB86B2A);
 
 class RouteMapScreen extends StatefulWidget {
   final List<OrderedBin> orderedBins;
@@ -24,24 +33,17 @@ class _RouteMapScreenState extends State<RouteMapScreen> with OSMMixinObserver {
   late MapController mapController;
   late AppSettings _appSettings;
   GeoPoint? userLocation;
-  final GeoPoint _defaultCenter = GeoPoint(
-    latitude: 32.8811,
-    longitude: -6.9063,
-  );
+  final GeoPoint _defaultCenter = GeoPoint(latitude: 32.8811, longitude: -6.9063);
   bool _isLoading = true;
-  // Popup state: stores info to display in overlay instead of showDialog
   Map<String, dynamic>? _popupInfo;
 
-  // Add a reference to the database
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref().child('trash_bins');
   Map<String, TrashBin> _trashBinsCache = {};
 
   @override
   void initState() {
     super.initState();
-    mapController = MapController(
-      initPosition: _defaultCenter,
-    );
+    mapController = MapController(initPosition: _defaultCenter);
     mapController.addObserver(this);
     mapController.enableTracking(enableStopFollow: true);
     _appSettings = AppSettings();
@@ -56,16 +58,13 @@ class _RouteMapScreenState extends State<RouteMapScreen> with OSMMixinObserver {
       if (event.snapshot.value != null && event.snapshot.value is Map) {
         final data = event.snapshot.value as Map<dynamic, dynamic>;
         _trashBinsCache = {};
-        
         data.forEach((key, value) {
           if (value is Map) {
             _trashBinsCache[key.toString()] = TrashBin.fromMap(key.toString(), value);
           }
         });
       }
-    } catch (e) {
-      debugPrint("Error fetching trash bins: $e");
-    }
+    } catch (_) {}
   }
 
   Future<void> _getCurrentLocation() async {
@@ -75,161 +74,88 @@ class _RouteMapScreenState extends State<RouteMapScreen> with OSMMixinObserver {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) return;
       }
-      if (permission == LocationPermission.deniedForever) return;
-
       final position = await Geolocator.getCurrentPosition();
       if (mounted) {
         setState(() {
-          userLocation = GeoPoint(
-            latitude: position.latitude,
-            longitude: position.longitude,
-          );
+          userLocation = GeoPoint(latitude: position.latitude, longitude: position.longitude);
         });
-        await mapController.enableTracking(
-          enableStopFollow: true,
-          disableUserMarkerRotation: true,
-        );
+        await mapController.enableTracking(enableStopFollow: true, disableUserMarkerRotation: true);
       }
-    } catch (e) {
-      debugPrint("Error getting location: $e");
-    }
+    } catch (_) {}
   }
 
   Future<void> _addMarkers() async {
     try {
       if (widget.orderedBins.isEmpty) return;
-      
       setState(() => _isLoading = true);
-      
-      // First clear everything
       await mapController.clearAllRoads();
-      await mapController.removeMarker(_defaultCenter); // Clear default marker if any
       
-      // Add markers first
       for (int i = 0; i < widget.orderedBins.length; i++) {
         final bin = widget.orderedBins[i];
-        final geoPoint = GeoPoint(
-          latitude: bin.location.latitude,
-          longitude: bin.location.longitude,
-        );
-        
+        final geoPoint = GeoPoint(latitude: bin.location.latitude, longitude: bin.location.longitude);
         if (geoPoint.latitude == 0.0 && geoPoint.longitude == 0.0) continue;
 
         await mapController.addMarker(
           geoPoint,
           markerIcon: MarkerIcon(
             iconWidget: Container(
-              padding: const EdgeInsets.all(8),
+              width: 44, height: 44,
               decoration: BoxDecoration(
-                color: Colors.blue,
+                color: _kPrimary,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(color: _kSurface, width: 3),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))],
               ),
-              child: Text(
-                '${i + 1}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
+              child: Center(
+                child: Text('${i + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
               ),
             ),
           ),
         );
-        
-        // Add delay between markers
         await Future.delayed(const Duration(milliseconds: 100));
       }
-
-      // Then zoom to show all markers
       await _zoomToMarkers();
-
       await Future.delayed(const Duration(milliseconds: 400));
-
       await _drawRoute();
-      
-      // Finally draw routes with delay
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-    } catch (e) {
-      debugPrint("Error in _addMarkers: $e");
+    } catch (_) {
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
-
 
   Future<void> _zoomToMarkers() async {
     final List<GeoPoint> points = [];
-    
     if (userLocation != null) points.add(userLocation!);
-    
-    points.addAll(widget.orderedBins
-        .map((bin) => GeoPoint(
-              latitude: bin.location.latitude,
-              longitude: bin.location.longitude,
-            ))
-        .where((p) => p.latitude != 0.0 && p.longitude != 0.0));
-
+    points.addAll(widget.orderedBins.map((bin) => GeoPoint(latitude: bin.location.latitude, longitude: bin.location.longitude)).where((p) => p.latitude != 0.0));
     if (points.isEmpty) return;
     
-    double minLat = points.first.latitude;
-    double maxLat = points.first.latitude;
-    double minLon = points.first.longitude;
-    double maxLon = points.first.longitude;
-
-    for (var point in points) {
-      minLat = min(minLat, point.latitude);
-      maxLat = max(maxLat, point.latitude);
-      minLon = min(minLon, point.longitude);
-      maxLon = max(maxLon, point.longitude);
+    double minLat = points.first.latitude, maxLat = points.first.latitude, minLon = points.first.longitude, maxLon = points.first.longitude;
+    for (var p in points) {
+      minLat = min(minLat, p.latitude); maxLat = max(maxLat, p.latitude);
+      minLon = min(minLon, p.longitude); maxLon = max(maxLon, p.longitude);
     }
-
-    final boundingBox = BoundingBox(
-      north: maxLat,
-      south: minLat,
-      east: maxLon,
-      west: minLon,
-    );
-
-    await mapController.zoomToBoundingBox(
-      boundingBox,
-      paddinInPixel: 50,
-    );
+    await mapController.zoomToBoundingBox(BoundingBox(north: maxLat, south: minLat, east: maxLon, west: minLon), paddinInPixel: 70);
   }
-
 
   @override
   Future<void> mapIsReady(bool isReady) async {
     if (!isReady) return;
-    
-    try {
-      // Wait for map to fully initialize
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // First get current location
-      await _getCurrentLocation();
-      
-      // Then add markers
-      await _addMarkers();
-      
-    } catch (e) {
-      debugPrint("Error in mapIsReady: $e");
-    }
+    await Future.delayed(const Duration(milliseconds: 500));
+    await _getCurrentLocation();
+    await _addMarkers();
   }
 
   void _showTruckInfo(GeoPoint location) {
     setState(() {
       _popupInfo = {
         'type': 'truck',
-        'title': 'Collection Truck',
+        'title': 'CAMION DE COLLECTE',
+        'icon': Icons.local_shipping_rounded,
+        'color': _kMid,
         'rows': [
-          'Maximum Volume: ${_appSettings.containerVolume?.toStringAsFixed(1) ?? "N/A"} L',
-          'Maximum Weight: ${_appSettings.containerWeight?.toStringAsFixed(1) ?? "N/A"} kg',
-          '---',
-          'Current Location: ${location.latitude.toStringAsFixed(6)}, ${location.longitude.toStringAsFixed(6)}',
+          'MAX VOLUME: ${_appSettings.containerVolume?.toStringAsFixed(1) ?? "N/A"} L',
+          'MAX POIDS: ${_appSettings.containerWeight?.toStringAsFixed(1) ?? "N/A"} kg',
+          'COORD: ${location.latitude.toStringAsFixed(4)}, ${location.longitude.toStringAsFixed(4)}',
         ],
       };
     });
@@ -237,92 +163,31 @@ class _RouteMapScreenState extends State<RouteMapScreen> with OSMMixinObserver {
 
   Future<void> _drawRoute() async {
     List<GeoPoint> points = [];
-    if (userLocation != null) {
-      points.add(userLocation!); // Start from truck location
-    }
-    points.addAll(widget.orderedBins
-        .map((bin) => GeoPoint(
-              latitude: bin.location.latitude,
-              longitude: bin.location.longitude,
-            ))
-        .where((p) => p.latitude != 0.0 && p.longitude != 0.0));
-
+    if (userLocation != null) points.add(userLocation!);
+    points.addAll(widget.orderedBins.map((bin) => GeoPoint(latitude: bin.location.latitude, longitude: bin.location.longitude)).where((p) => p.latitude != 0.0));
     if (points.length < 2) return;
 
-    // Build MultiRoadConfiguration list for each segment
     final configs = <MultiRoadConfiguration>[];
     for (int i = 0; i < points.length - 1; i++) {
-      configs.add(
-        MultiRoadConfiguration(
-          startPoint: points[i],
-          destinationPoint: points[i + 1],
-          // Optionally, you can add roadOptionConfiguration here
-        ),
-      );
+      configs.add(MultiRoadConfiguration(startPoint: points[i], destinationPoint: points[i + 1]));
     }
-
-    await mapController.drawMultipleRoad(
-      configs,
-      commonRoadOption: MultiRoadOption(
-        roadColor: Colors.blue,
-        roadWidth: 8,
-      ),
-    );
+    await mapController.drawMultipleRoad(configs, commonRoadOption: const MultiRoadOption(roadColor: _kPrimary, roadWidth: 10));
   }
 
-  TrashBin _getTrashBinFromOrderedBin(OrderedBin orderedBin) {
-    // First try to find by exact location match
-    return _trashBinsCache.values.firstWhere(
-      (bin) => 
-        bin.location.latitude == orderedBin.location.latitude &&
-        bin.location.longitude == orderedBin.location.longitude,
-      orElse: () {
-        // If not found by location, try to find by name
-        return _trashBinsCache.values.firstWhere(
-          (bin) => bin.name == orderedBin.name,
-          orElse: () {
-            // If still not found, create a temporary TrashBin from OrderedBin data
-            return TrashBin(
-              id: 'temp_${orderedBin.name}',
-              name: orderedBin.name,
-              humidity: 0.0, // Default values
-              trashLevel: orderedBin.capacity,
-              gazLevel: 0.0,
-              location: orderedBin.location,
-              trashType: 'Unknown',
-              weight: orderedBin.weight,
-              volume: orderedBin.volume,
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showBinInfo(OrderedBin orderedBin, int orderNumber) {
-    final trashBin = _getTrashBinFromOrderedBin(orderedBin);
-    final rows = <String>[
-      'Trash Type: ${trashBin.trashType}',
-      'Capacity: ${trashBin.trashLevel.toStringAsFixed(1)}%',
-      'Weight: ${trashBin.weight.toStringAsFixed(1)} kg',
-    ];
-    if (trashBin.volume != null) {
-      rows.add('Volume: ${trashBin.volume!.toStringAsFixed(1)} L');
-    }
-    rows.addAll([
-      'Gas Level: ${trashBin.gazLevel.toStringAsFixed(1)}%',
-      'Humidity: ${trashBin.humidity.toStringAsFixed(1)}%',
-      'Temperature: ${trashBin.temperature.toStringAsFixed(1)}°C',
-      '---',
-      'Order in Route: $orderNumber',
-      'Distance: ${orderedBin.distance?.toStringAsFixed(1) ?? "N/A"} km',
-      'Location: ${trashBin.location.latitude.toStringAsFixed(6)}, ${trashBin.location.longitude.toStringAsFixed(6)}',
-    ]);
+  void _showBinInfo(OrderedBin bin, int order) {
     setState(() {
       _popupInfo = {
         'type': 'bin',
-        'title': 'Container $orderNumber: ${trashBin.name}',
-        'rows': rows,
+        'title': 'BAC N°$order: ${bin.name}',
+        'icon': Icons.delete_rounded,
+        'color': bin.capacity > 80 ? _kAlert : _kPrimary,
+        'rows': [
+          'TYPE: DÉCHETS MIXTES',
+          'REMPLISSAGE: ${bin.capacity.toStringAsFixed(0)}%',
+          'POIDS: ${bin.weight.toStringAsFixed(1)} kg',
+          'LITRES: ${bin.volume.toStringAsFixed(0)} L',
+          'DISTANCE PROCHE: ${bin.distance?.toStringAsFixed(1) ?? "N/A"} km',
+        ],
       };
     });
   }
@@ -330,12 +195,37 @@ class _RouteMapScreenState extends State<RouteMapScreen> with OSMMixinObserver {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _kBg,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Collection Route'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CircleAvatar(
+            backgroundColor: _kSurface,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _kPrimary, size: 16),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ),
+        title: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(color: _kSurface.withOpacity(0.9), borderRadius: BorderRadius.circular(20), border: Border.all(color: _kBorder)),
+          child: const Text("CONTRÔLE NAVIGATION", style: TextStyle(color: _kPrimary, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.my_location),
-            onPressed: () => mapController.currentLocation(),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: CircleAvatar(
+              backgroundColor: _kSurface,
+              child: IconButton(
+                icon: const Icon(Icons.my_location_rounded, color: _kPrimary, size: 20),
+                onPressed: () => mapController.currentLocation(),
+              ),
+            ),
           ),
         ],
       ),
@@ -344,109 +234,91 @@ class _RouteMapScreenState extends State<RouteMapScreen> with OSMMixinObserver {
           OSMFlutter(
             controller: mapController,
             osmOption: OSMOption(
-              zoomOption: ZoomOption(
-                initZoom: 14,
-                minZoomLevel: 2,
-                maxZoomLevel: 19,
-              ),
-              // Add these missing options
-              // trackMyPosition: true,
+              zoomOption: const ZoomOption(initZoom: 14, minZoomLevel: 2, maxZoomLevel: 19),
               showDefaultInfoWindow: false,
               enableRotationByGesture: true,
-              showZoomController: true,
-              userTrackingOption: UserTrackingOption(
-                enableTracking: true,
-                unFollowUser: false,
-              ),
+              userTrackingOption: const UserTrackingOption(enableTracking: true, unFollowUser: false),
               userLocationMarker: UserLocationMaker(
                 personMarker: MarkerIcon(
-                  assetMarker: AssetMarker(
-                    image: AssetImage('assets/images/truck_marker.png'),
-                    scaleAssetImage: 25,
+                  iconWidget: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: _kPrimary, shape: BoxShape.circle, border: Border.all(color: _kSurface, width: 3), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10)]),
+                    child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 24),
                   ),
                 ),
                 directionArrowMarker: MarkerIcon(
-                  assetMarker: AssetMarker(
-                    image: AssetImage('assets/images/truck_marker.png'),
-                    scaleAssetImage: 25,
+                  iconWidget: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: _kPrimary, shape: BoxShape.circle, border: Border.all(color: _kSurface, width: 3)),
+                    child: const Icon(Icons.navigation_rounded, color: Colors.white, size: 24),
                   ),
                 ),
               ),
             ),
             onGeoPointClicked: (geoPoint) async {
-              if (_popupInfo != null) return;
-              if (userLocation?.latitude == geoPoint.latitude && 
-                  userLocation?.longitude == geoPoint.longitude) {
+              if (_popupInfo != null) { setState(() => _popupInfo = null); return; }
+              if (userLocation?.latitude == geoPoint.latitude) {
                 _showTruckInfo(geoPoint);
               } else {
-                final clickedIndex = widget.orderedBins.indexWhere(
-                  (bin) => 
-                    bin.location.latitude == geoPoint.latitude && 
-                    bin.location.longitude == geoPoint.longitude,
-                );
-                if (clickedIndex == -1) return;
-                
-                _showBinInfo(
-                  widget.orderedBins[clickedIndex],
-                  clickedIndex + 1
-                );
+                final idx = widget.orderedBins.indexWhere((b) => b.location.latitude == geoPoint.latitude);
+                if (idx != -1) _showBinInfo(widget.orderedBins[idx], idx + 1);
               }
             },
           ),
-          // Info popup overlay
           if (_popupInfo != null)
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => setState(() => _popupInfo = null),
-                child: Container(
-                  color: Colors.black54,
-                  alignment: Alignment.center,
-                  child: GestureDetector(
-                    onTap: () {},
-                    child: Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 32),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 8,
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _popupInfo!['title'] as String,
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 12),
-                            ...(_popupInfo!['rows'] as List<String>).map((row) {
-                              if (row == '---') return const Divider();
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 2),
-                                child: Text(row),
-                              );
-                            }),
-                            const SizedBox(height: 16),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () => setState(() => _popupInfo = null),
-                                child: const Text('Close'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            Positioned(
+              left: 20, right: 20, bottom: 40,
+              child: _buildPremiumPopup(),
             ),
           if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
+            const Center(child: CircularProgressIndicator(color: _kPrimary, strokeWidth: 2)),
         ],
       ),
+    );
+  }
+
+  Widget _buildPremiumPopup() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _kSurface.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: _kBorder, width: 1.5),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 30, offset: const Offset(0, 15))],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: (_popupInfo!['color'] as Color).withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+                child: Icon(_popupInfo!['icon'] as IconData, color: _popupInfo!['color'] as Color, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(_popupInfo!['title'] as String, style: const TextStyle(color: _kPrimary, fontSize: 16, fontWeight: FontWeight.w900)),
+              ),
+              IconButton(onPressed: () => setState(() => _popupInfo = null), icon: const Icon(Icons.close_rounded, color: _kTextSec))
+            ],
+          ),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 12, runSpacing: 12,
+            children: (_popupInfo!['rows'] as List<String>).map((row) => _buildPopupBadge(row)).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPopupBadge(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(color: _kBg, borderRadius: BorderRadius.circular(12), border: Border.all(color: _kBorder.withOpacity(0.5))),
+      child: Text(text, style: const TextStyle(color: _kPrimary, fontSize: 11, fontWeight: FontWeight.w700)),
     );
   }
 

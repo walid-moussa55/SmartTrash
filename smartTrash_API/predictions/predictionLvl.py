@@ -25,9 +25,9 @@ model = None
 scaler = None
 try:
     model = LSTMModel()
-    model.load_state_dict(torch.load('weights_pth/model.pth'))
+    model.load_state_dict(torch.load('weights_pth/model_lvl.pth'))
     model.eval()
-    scaler = joblib.load('weights_pth/scaler.pkl')
+    scaler = joblib.load('weights_pth/scaler_lvl.pkl')
     print("[PredictionLvl] LSTM model and scaler loaded successfully.")
 except Exception as e:
     print(f"[PredictionLvl] Warning: Failed to load model/scaler: {e}")

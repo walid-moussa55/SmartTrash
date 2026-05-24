@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pydantic
+aiofiles
+torch
+torchvision
+pillow
+numpy

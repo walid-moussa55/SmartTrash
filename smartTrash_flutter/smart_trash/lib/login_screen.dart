@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'auth_service.dart';
 import 'signup_screen.dart';
 import 'theme_provider.dart';
-import 'dart:math' as math;
+import 'app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,43 +11,24 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
   bool _isLoading = false;
   bool _obscurePassword = true;
-
-  late AnimationController _animController;
-  late AnimationController _floatController;
-  late Animation<double> _fadeIn;
-  late Animation<Offset> _slideUp;
-
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
-    _fadeIn = CurvedAnimation(parent: _animController, curve: const Interval(0.0, 0.6, curve: Curves.easeOut));
-    _slideUp = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animController, curve: const Interval(0.1, 0.7, curve: Curves.easeOutCubic)));
-
-    _floatController = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat(reverse: true);
-
-    _animController.forward();
-  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _animController.dispose();
-    _floatController.dispose();
     super.dispose();
   }
 
-  void _login() async {
+  Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _isLoading = true; });
+    setState(() => _isLoading = true);
 
     final result = await AuthService().loginWithEmailPassword(
       _emailController.text.trim(),
@@ -55,299 +36,554 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
 
     if (!mounted) return;
-    setState(() { _isLoading = false; });
+    setState(() => _isLoading = false);
 
     if (!result.isSuccess) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result.errorMessage ?? "Login failed."),
-          backgroundColor: Colors.redAccent,
+          content: Text(result.errorMessage ?? 'Échec de connexion.'),
+          backgroundColor: AppTheme.alert,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     }
   }
 
+  InputDecoration _fieldStyle({
+    required String hint,
+    required IconData prefixData,
+    Widget? suffix,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
+      prefixIcon: Icon(prefixData, color: Colors.black87, size: 20),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: const Color(0xFFF4F4F4), // Slightly grey/beige background for fields
+      contentPadding: const EdgeInsets.symmetric(vertical: 20),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      errorStyle: const TextStyle(color: AppTheme.alert, fontSize: 12),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    // Determine screen size for responsive layout
     final size = MediaQuery.of(context).size;
+    final isDesktop = size.width > 800;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // ── Animated background gradient ──
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDark
-                    ? [const Color(0xFF0D1B2A), const Color(0xFF1B2838), const Color(0xFF0D1B2A)]
-                    : [const Color(0xFFE8F5E9), const Color(0xFFE3F2FD), const Color(0xFFF3E5F5)],
+      body: Container(
+        // Subtle background gradient from pale green to beige
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: const Alignment(-0.8, -0.8),
+            radius: 1.5,
+            colors: [
+              AppTheme.pale.withAlpha(200),
+              AppTheme.bg,
+            ],
+          ),
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // ── DÉCORS ENVIRONNEMENTAUX ──
+            Positioned(
+              top: -80,
+              left: -80,
+              child: Transform.rotate(
+                angle: -0.2,
+                child: Icon(Icons.energy_savings_leaf_outlined, size: 380, color: AppTheme.primary.withAlpha(8)),
               ),
             ),
-          ),
-          // ── Floating decorative circles ──
-          AnimatedBuilder(
-            animation: _floatController,
-            builder: (context, child) {
-              final v = _floatController.value;
-              return Stack(
-                children: [
-                  Positioned(
-                    top: size.height * 0.05 + math.sin(v * math.pi) * 15,
-                    right: -30 + math.cos(v * math.pi) * 10,
-                    child: _glowCircle(120, theme.colorScheme.primary.withAlpha(30)),
-                  ),
-                  Positioned(
-                    bottom: size.height * 0.1 + math.cos(v * math.pi) * 20,
-                    left: -40 + math.sin(v * math.pi) * 12,
-                    child: _glowCircle(160, theme.colorScheme.secondary.withAlpha(25)),
-                  ),
-                  Positioned(
-                    top: size.height * 0.35 + math.sin(v * math.pi * 0.7) * 10,
-                    left: size.width * 0.7,
-                    child: _glowCircle(80, Colors.green.withAlpha(20)),
-                  ),
-                ],
-              );
-            },
-          ),
-          // ── Content ──
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: SlideTransition(
-                  position: _slideUp,
-                  child: FadeTransition(
-                    opacity: _fadeIn,
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+            Positioned(
+              bottom: -100,
+              right: -100,
+              child: Transform.rotate(
+                angle: 0.3,
+                child: Icon(Icons.recycling_rounded, size: 480, color: AppTheme.primary.withAlpha(8)),
+              ),
+            ),
+            Positioned(
+              top: size.height * 0.35,
+              right: -50,
+              child: Transform.rotate(
+                angle: -0.15,
+                child: Icon(Icons.delete_outline_rounded, size: 250, color: AppTheme.primary.withAlpha(8)),
+              ),
+            ),
+            Positioned(
+              bottom: 80,
+              left: -40,
+              child: Transform.rotate(
+                angle: 0.25,
+                child: Icon(Icons.eco_outlined, size: 280, color: AppTheme.primary.withAlpha(8)),
+              ),
+            ),
+            // ── CONTENU PRINCIPAL ──
+            SafeArea(
+              child: Column(
+            children: [
+              // ── TOP BAR ──
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isDesktop ? 48.0 : 24.0,
+                  vertical: 24.0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'NaqiAI',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.primary,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: AppTheme.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.question_mark_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── CENTER CARD ──
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    child: Container(
+                      width: 540, // Max width for card
+                      clipBehavior: Clip.hardEdge,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(isDesktop ? 10 : 15),
+                            blurRadius: 40,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Stack(
                         children: [
-                          // ── Logo + Branding ──
-                          AnimatedBuilder(
-                            animation: _floatController,
-                            builder: (context, child) {
-                              return Transform.translate(
-                                offset: Offset(0, math.sin(_floatController.value * math.pi) * 6),
-                                child: child,
-                              );
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(22),
+                          // ── DÉCORS INTERNES (7 Éléments Environnementaux) ──
+                          Positioned(
+                            top: -40,
+                            right: -30,
+                            child: Transform.rotate(
+                              angle: 0.2,
+                              child: Icon(Icons.park_rounded, size: 160, color: const Color(0xFF9EAC9F).withAlpha(65)),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: -40,
+                            left: -40,
+                            child: Transform.rotate(
+                              angle: -0.3,
+                              child: Icon(Icons.water_drop_outlined, size: 160, color: const Color(0xFF9EAC9F).withAlpha(35)),
+                            ),
+                          ),
+                          Positioned(
+                            top: 150,
+                            left: -40,
+                            child: Transform.rotate(
+                              angle: 0.15,
+                              child: Icon(Icons.compost, size: 120, color: const Color(0xFF9EAC9F).withAlpha(35)),
+                            ),
+                          ),
+                          Positioned(
+                            top: 20,
+                            left: 40,
+                            child: Transform.rotate(
+                              angle: -0.2,
+                              child: Icon(Icons.emoji_nature_outlined, size: 80, color: const Color(0xFF9EAC9F).withAlpha(35)),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 10,
+                            right: -20,
+                            child: Transform.rotate(
+                              angle: -0.1,
+                              child: Icon(Icons.solar_power_outlined, size: 140, color: const Color(0xFF9EAC9F).withAlpha(35)),
+                            ),
+                          ),
+                          Positioned(
+                            top: 140,
+                            right: -20,
+                            child: Transform.rotate(
+                              angle: 0.25,
+                              child: Icon(Icons.wind_power_outlined, size: 130, color: const Color(0xFF9EAC9F).withAlpha(35)),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 20,
+                            left: 140,
+                            child: Transform.rotate(
+                              angle: -0.15,
+                              child: Icon(Icons.battery_charging_full_rounded, size: 100, color: const Color(0xFF9EAC9F).withAlpha(35)),
+                            ),
+                          ),
+                          // ── FORMULAIRE PRINCIPAL ──
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 48),
+                            child: Form(
+                              key: _formKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Image Logo
+                            Container(
+                              width: 80,
+                              height: 80,
                               decoration: BoxDecoration(
+                                color: Colors.white,
                                 shape: BoxShape.circle,
-                                gradient: RadialGradient(
-                                  colors: [
-                                    theme.colorScheme.primary.withAlpha(40),
-                                    theme.colorScheme.primary.withAlpha(10),
-                                  ],
-                                ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: theme.colorScheme.primary.withAlpha(30),
-                                    blurRadius: 30,
-                                    spreadRadius: 5,
+                                    color: Colors.black.withAlpha(10),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
                                   ),
                                 ],
                               ),
-                              child: Image.asset('assets/images/logo.png', height: 72),
+                              clipBehavior: Clip.hardEdge,
+                              child: Image.asset(
+                                'assets/images/logo_app.png',
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(Icons.recycling_rounded, color: AppTheme.primary, size: 32);
+                                },
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 24),
-                          ShaderMask(
-                            shaderCallback: (bounds) => LinearGradient(
-                              colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
-                            ).createShader(bounds),
-                            child: Text(
-                              "NaqiAI",
-                              style: theme.textTheme.headlineMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
+                            const SizedBox(height: 20),
+
+                            // Titles
+                            const Text(
+                              'Connexion',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
                                 letterSpacing: -0.5,
-                                fontSize: 32,
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            "Intelligent Waste Management",
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                            const SizedBox(height: 8),
+                            const Text(
+                              "L'IA au service de la durabilité intelligente.",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.black54,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                          ),
-                          const SizedBox(height: 44),
+                            const SizedBox(height: 36),
 
-                          // ── Glass Card ──
-                          Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: (isDark ? Colors.white : Colors.white).withAlpha(isDark ? 15 : 200),
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: (isDark ? Colors.white : Colors.grey).withAlpha(isDark ? 20 : 40),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withAlpha(isDark ? 40 : 15),
-                                  blurRadius: 30,
-                                  offset: const Offset(0, 10),
+                            // Email Field
+                            const Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'EMAIL PROFESSIONNEL',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.2,
+                                  color: Colors.black54,
                                 ),
-                              ],
+                              ),
                             ),
-                            child: Column(
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              style: const TextStyle(fontSize: 14, color: Colors.black87),
+                              decoration: _fieldStyle(
+                                hint: 'exemple@naqi.ma',
+                                prefixData: Icons.email_outlined,
+                              ),
+                              validator: (v) =>
+                                  (v == null || v.isEmpty || !v.contains('@'))
+                                      ? 'Email invalide'
+                                      : null,
+                            ),
+                            const SizedBox(height: 24),
+
+                            // Password Field
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                // ── Email Field ──
-                                TextFormField(
-                                  controller: _emailController,
-                                  keyboardType: TextInputType.emailAddress,
-                                  decoration: InputDecoration(
-                                    labelText: "Email",
-                                    prefixIcon: const Icon(Icons.email_outlined),
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                      borderSide: BorderSide(color: theme.colorScheme.outline.withAlpha(60)),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                      borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
-                                    ),
-                                    filled: true,
-                                    fillColor: (isDark ? Colors.white : Colors.grey).withAlpha(isDark ? 8 : 15),
+                                const Text(
+                                  'MOT DE PASSE',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.2,
+                                    color: Colors.black54,
                                   ),
-                                  validator: (v) =>
-                                    (v == null || v.isEmpty || !v.contains('@')) ? 'Enter a valid email' : null,
                                 ),
-                                const SizedBox(height: 18),
-
-                                // ── Password Field ──
-                                TextFormField(
-                                  controller: _passwordController,
-                                  obscureText: _obscurePassword,
-                                  decoration: InputDecoration(
-                                    labelText: "Password",
-                                    prefixIcon: const Icon(Icons.lock_outline),
-                                    suffixIcon: IconButton(
-                                      icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                                    ),
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                      borderSide: BorderSide(color: theme.colorScheme.outline.withAlpha(60)),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                      borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
-                                    ),
-                                    filled: true,
-                                    fillColor: (isDark ? Colors.white : Colors.grey).withAlpha(isDark ? 8 : 15),
-                                  ),
-                                  validator: (v) =>
-                                    (v == null || v.isEmpty) ? 'Enter your password' : null,
-                                ),
-                                const SizedBox(height: 28),
-
-                                // ── Login Button with gradient ──
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 54,
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
-                                      ),
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: theme.colorScheme.primary.withAlpha(80),
-                                          blurRadius: 12,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: ElevatedButton(
-                                      onPressed: _isLoading ? null : _login,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.transparent,
-                                        shadowColor: Colors.transparent,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                      ),
-                                      child: _isLoading
-                                        ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                                        : const Text("Sign In", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+                                GestureDetector(
+                                  onTap: () {}, // Forgot password action
+                                  child: const Text(
+                                    'Mot de passe oublié?',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black54,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                          const SizedBox(height: 24),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _passwordController,
+                              obscureText: _obscurePassword,
+                              style: const TextStyle(fontSize: 14, color: Colors.black87),
+                              decoration: _fieldStyle(
+                                hint: '••••••••',
+                                prefixData: Icons.lock_outline,
+                                suffix: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                    color: Colors.black45,
+                                    size: 20,
+                                  ),
+                                  onPressed: () => setState(
+                                      () => _obscurePassword = !_obscurePassword),
+                                ),
+                              ),
+                              validator: (v) =>
+                                  (v == null || v.isEmpty) ? 'Mot de passe requis' : null,
+                            ),
+                            const SizedBox(height: 32),
 
-                          // ── Sign Up Link ──
+                            // Login Button
+                            SizedBox(
+                              width: double.infinity,
+                              height: 54,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _login,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primary,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: const [
+                                          Text(
+                                            'Se connecter',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          SizedBox(width: 8),
+                                          Icon(Icons.arrow_forward, size: 18),
+                                        ],
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+
+                            // Sign up
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  'Pas encore de compte? ',
+                                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                                ),
+                                GestureDetector(
+                                  onTap: () => Navigator.pushReplacement(
+                                    context,
+                                    PageRouteBuilder(
+                                      pageBuilder: (_, __, ___) =>
+                                          const SignupScreen(),
+                                      transitionsBuilder: (_, a, __, c) =>
+                                          FadeTransition(opacity: a, child: c),
+                                      transitionDuration:
+                                          const Duration(milliseconds: 300),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    "S'inscrire",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 32),
+
+                            // Badge footer
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppTheme.light.withAlpha(80),
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: const Text(
+                                'INTELLIGENT WASTE MANAGEMENT',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5,
+                                  color: AppTheme.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ),
+              ),
+
+              // ── FOOTER ──
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isDesktop ? 48.0 : 24.0,
+                  vertical: 24.0,
+                ),
+                child: isDesktop
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            '© 2024 NAQIAI. INTELLIGENT SUSTAINABILITY.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.0,
+                              color: AppTheme.mid,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              _footerLink('PRIVACY POLICY'),
+                              const SizedBox(width: 20),
+                              _footerLink('TERMS OF SERVICE'),
+                              const SizedBox(width: 32),
+                              _darkModeToggle(),
+                            ],
+                          )
+                        ],
+                      )
+                    : Column(
+                        children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text("Don't have an account?", style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
-                              TextButton(
-                                onPressed: () => Navigator.pushReplacement(
-                                  context,
-                                  PageRouteBuilder(
-                                    pageBuilder: (_, __, ___) => const SignupScreen(),
-                                    transitionsBuilder: (_, a, __, c) =>
-                                        FadeTransition(opacity: a, child: SlideTransition(
-                                          position: Tween<Offset>(begin: const Offset(0.1, 0), end: Offset.zero).animate(a),
-                                          child: c,
-                                        )),
-                                    transitionDuration: const Duration(milliseconds: 400),
-                                  ),
-                                ),
-                                child: Text("Sign up", style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
-                              ),
+                              _footerLink('PRIVACY POLICY'),
+                              const SizedBox(width: 20),
+                              _footerLink('TERMS OF SERVICE'),
                             ],
                           ),
-
-                          // ── Theme Toggle ──
-                          const SizedBox(height: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: (isDark ? Colors.white : Colors.black).withAlpha(isDark ? 10 : 8),
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            child: IconButton(
-                              onPressed: () => ThemeProvider().toggleTheme(),
-                              icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, size: 20),
-                              tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                          const SizedBox(height: 16),
+                          _darkModeToggle(),
+                          const SizedBox(height: 16),
+                          const Text(
+                            '© 2024 NAQIAI. INTELLIGENT SUSTAINABILITY.',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.0,
+                              color: AppTheme.mid,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _glowCircle(double size, Color color) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-        boxShadow: [BoxShadow(color: color, blurRadius: 40, spreadRadius: 10)],
+  Widget _footerLink(String text) {
+    return GestureDetector(
+      onTap: () {},
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.0,
+          color: AppTheme.mid,
+        ),
+      ),
+    );
+  }
+
+  Widget _darkModeToggle() {
+    return GestureDetector(
+      onTap: () => ThemeProvider().toggleTheme(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.black.withAlpha(15),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.dark_mode_rounded, size: 14, color: Colors.black87),
+            SizedBox(width: 8),
+            Text(
+              'Mode sombre',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

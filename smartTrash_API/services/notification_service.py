@@ -122,3 +122,24 @@ class NotificationService:
     def _should_send_notification(self, bin_id: str, trash_level: float) -> bool:
         return bin_id not in self.last_known_trash_levels or \
                abs(self.last_known_trash_levels[bin_id] - trash_level) >= 1.0
+
+    def send_reward_notification(self, user_fcm_token: str, score: int, reward_type: str = "ticket"):
+        """Send a direct FCM message to the user when they earn a reward ticket."""
+        try:
+            message = messaging.Message(
+                notification=messaging.Notification(
+                    title="🎉 You won a ticket!",
+                    body=f"Congratulations! You reached {score} recycling points and earned a reward {reward_type}!",
+                ),
+                data={
+                    "screen": "gamification",
+                    "event": "ticket_won",
+                    "reward_type": reward_type,
+                    "score": str(score),
+                },
+                token=user_fcm_token,
+            )
+            response = messaging.send(message)
+            print(f"Reward notification sent to token {user_fcm_token[:12]}...: {response}")
+        except Exception as e:
+            print(f"Error sending reward notification: {e}")

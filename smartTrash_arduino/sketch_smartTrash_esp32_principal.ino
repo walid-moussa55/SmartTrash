@@ -12,7 +12,13 @@
 #define WIFI_PASSWORD "[PASSWORD]"
 
 // ── API ──────────────────────────────────────────────
-const char* serverName = "http://[IP_ADDRESS]/update/trash_1";
+const char* serverName      = "http:/[API_IP_ADDRESS]:8000/update/trash_1";
+const char* depositCloseUrl = "http://[API_IP_ADDRESS]:8000/deposit/close";
+
+// ── MAC ESP32-CAM ────────────────────────────────────
+// !! Remplacer par le vrai MAC de votre ESP32-CAM !!
+// Lisible dans le Serial Monitor de la CAM au demarrage
+uint8_t camMAC[] = {0xXX, 0xXX, 0xXX, 0xXX, 0xXX, 0xXX}; // A remplacer par le MAC de l'esp32 CAM
 
 // ── PINS ─────────────────────────────────────────────
 #define TRIG_OBJ         4
@@ -29,10 +35,11 @@ const char* serverName = "http://[IP_ADDRESS]/update/trash_1";
 #define BUZZER_PIN      33
 
 // ── CONSTANTES ───────────────────────────────────────
-const float hauteurPoubelle = 15.00;
+const float hauteurPoubelle = 12.00;
 const float distanceMin     = 2.0;
 const int   dryValue        = 200;
 const int   wetValue        = 2400;
+const unsigned long CAM_TIMEOUT_MS = 8000; // attente max reponse CAM
 
 // ── OBJETS ───────────────────────────────────────────
 DHT               dht(DHTPIN, DHTTYPE);
@@ -45,31 +52,55 @@ byte wifiIcon[8]   = {B00000,B00100,B01010,B10001,B00000,B00100,B00000,B00100};
 byte serverIcon[8] = {B11111,B10101,B11111,B10101,B11111,B00100,B01010,B10001};
 
 // ── VARIABLES ────────────────────────────────────────
-unsigned long lastSend      = 0;
+unsigned long lastSend       = 0;
 const unsigned long sendInterval = 10000;
-bool isConnectToServer      = false;
-float facteur_etalon        = 100000.0;
+bool isConnectToServer       = false;
+float facteur_etalon         = 450000.0;
 
-// ── ESP-NOW : TYPE RECU DE LA CAM ────────────────────
+// ── POUBELLE SPECIALISEE ─────────────────────────────
+const String BIN_TYPE = "paper"; // changer selon votre poubelle
+const String BIN_ID   = "trash_1"; // doit correspondre a Firebase
+
+// ── ESP-NOW : STRUCTURES ──────────────────────────────
+// Message envoye a la CAM (trigger)
+typedef struct {
+  char command[10]; // "SCAN"
+} TriggerMessage;
+
+// Message recu de la CAM (resultat)
 typedef struct {
   char trash_type[20];
 } TrashMessage;
 
-TrashMessage receivedMsg;
-String detectedType  = "";
-bool   newDetection  = false;
+// ── LECTURE CAPTEURS (non-bloquante) ─────────────────
+struct SensorData {
+  int   gasLevel;
+  float humidity;
+  float temperature;
+  float trashLevelPercent;
+  int   waterLevelPercent;
+  float weight;
+};
 
-// ── POUBELLE SPÉCIALISÉE ─────────────────────────────
-// Changez cette valeur selon le type de votre poubelle
-// "paper", "plastic", "metal", "glass", "organic", "cardboard"
-const String BIN_TYPE = "paper";
+TriggerMessage trigMsg;
+TrashMessage   receivedMsg;
 
-// ── CALLBACK ESP-NOW RÉCEPTION (compatible SDK 3.x) ──
+// ── ETAT SCAN ────────────────────────────────────────
+volatile bool camResultReceived = false;
+String detectedType = "";
+
+// ── CALLBACKS ESP-NOW ─────────────────────────────────
+void onSent(const wifi_tx_info_t* info, esp_now_send_status_t status) {
+  Serial.println(status == ESP_NOW_SEND_SUCCESS
+    ? "ESP-NOW → CAM : trigger envoye OK"
+    : "ESP-NOW → CAM : echec envoi trigger");
+}
+
 void onReceive(const esp_now_recv_info* info, const uint8_t* data, int len) {
   memcpy(&receivedMsg, data, sizeof(receivedMsg));
-  detectedType = String(receivedMsg.trash_type);
-  newDetection = true;
-  Serial.println("ESP-NOW recu: " + detectedType);
+  detectedType      = String(receivedMsg.trash_type);
+  camResultReceived = true;
+  Serial.println("ESP-NOW recu depuis CAM: " + detectedType);
 }
 
 // ── FONCTIONS CAPTEURS ───────────────────────────────
@@ -101,7 +132,6 @@ float calculerNiveau(float distance) {
   return constrain(niveau, 0, 100);
 }
 
-// ── AFFICHER MESSAGE LCD 2 LIGNES ────────────────────
 void lcdMessage(String line1, String line2) {
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -110,54 +140,173 @@ void lcdMessage(String line1, String line2) {
   lcd.print(line2.substring(0, 16));
 }
 
-// ── LOGIQUE SERVO INTELLIGENTE ───────────────────────
-void handleServoDecision() {
 
-  if (!newDetection) {
-    // Pas encore de réponse de la CAM — afficher attente
-    lcdMessage("Analyse image", "Patientez...");
-    Serial.println("En attente detection CAM...");
-    return;
+
+SensorData readAllSensors() {
+  SensorData d;
+  d.gasLevel          = map(analogRead(GAS_SENSOR_A0), 0, 1200, 0, 20);
+  d.humidity          = dht.readHumidity();
+  d.temperature       = dht.readTemperature();
+  float trashDistance = lireDistance();
+  d.trashLevelPercent = calculerNiveau(trashDistance);
+  int rawWater        = analogRead(WATER_SENSOR_PIN);
+  d.waterLevelPercent = constrain(map(rawWater, dryValue, wetValue, 0, 100), 0, 100);
+  d.weight            = 0;
+  if (scale.is_ready()) {
+    float p = scale.get_units(3); // 3 lectures pour etre plus rapide
+    d.weight = (p < 0) ? 0 : p;
+  }
+  return d;
+}
+
+// ── AFFICHAGE LCD NORMAL ──────────────────────────────
+void updateLCDNormal(float trashLevel) {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Trash:");
+  lcd.print((int)trashLevel);
+  lcd.print("% ");
+  lcd.setCursor(15, 0);
+  if (WiFi.status() == WL_CONNECTED) lcd.write(byte(0));
+  lcd.setCursor(0, 1);
+  if      (trashLevel < 20) lcd.print("LOW   ");
+  else if (trashLevel < 80) lcd.print("MEDIUM");
+  else                      lcd.print("FULL  ");
+  lcd.setCursor(15, 1);
+  if (isConnectToServer) lcd.write(byte(1));
+}
+
+// ── ENVOI API ─────────────────────────────────────────
+void sendToAPI(const SensorData& d) {
+  if (isnan(d.humidity) || isnan(d.temperature)) return;
+
+  String jsonData = "{";
+  jsonData += "\"bin_id\":\"trash_1\",";
+  jsonData += "\"gaz_level\":"    + String(d.gasLevel)          + ",";
+  jsonData += "\"humidity\":"     + String(d.humidity)          + ",";
+  jsonData += "\"temperature\":"  + String(d.temperature)       + ",";
+  jsonData += "\"location\":{\"latitude\":33.996649,\"longitude\":-6.847036},";
+  jsonData += "\"name\":\"Poubelle 1 - Hôtel Atlantic Agdal\",";
+  jsonData += "\"trash_level\":"  + String(d.trashLevelPercent) + ",";
+  jsonData += "\"trash_type\":\""  + BIN_TYPE           + "\",";
+  jsonData += "\"weight\":"       + String(d.weight)            + ",";
+  jsonData += "\"volume\":100,";
+  jsonData += "\"water_level\":"  + String(d.waterLevelPercent);
+  jsonData += "}";
+
+  Serial.println("Sending to API: " + jsonData);
+
+  HTTPClient http;
+  http.begin(serverName);
+  http.addHeader("Content-Type", "application/json");
+  int code = http.POST(jsonData);
+  isConnectToServer = (code > 0);
+  if (code > 0) Serial.println("API OK: " + http.getString());
+  else          Serial.println("API Error: " + String(code));
+  http.end();
+}
+
+void sendDepositCloseEvent(float weightAfter, const String& arduinoType) {
+  if (WiFi.status() != WL_CONNECTED) return;
+  HTTPClient http;
+  http.begin(depositCloseUrl);
+  http.addHeader("Content-Type", "application/json");
+  String body = "{";
+  body += "\"bin_id\": \"" + BIN_ID + "\",";
+  body += "\"weight_after\": " + String(weightAfter, 3) + ",";
+  body += "\"arduino_detected_type\": \"" + arduinoType + "\",";
+  body += "\"deposit_event\": true";
+  body += "}";
+  int code = http.POST(body);
+  Serial.println("Deposit close event sent, HTTP: " + String(code));
+  if (code > 0) Serial.println("Response: " + http.getString());
+  http.end();
+}
+
+// ── LOGIQUE SERVO ─────────────────────────────────────
+void handleServoDecision(const String& detType, float weightBefore) {
+  Serial.printf("Decision: detecte=%s | bin=%s\n",
+    detType.c_str(), BIN_TYPE.c_str());
+
+  if (detType == BIN_TYPE) {
+    Serial.println("BON TYPE — ouverture");
+    lcdMessage("Merci !", BIN_TYPE + " accepte!");
+    
+    servo.write(140);
+    delay(4000); // lid stays open
+    servo.write(0); // lid closes
+
+    // Snapshot de poids APRES le depot
+    float weightAfter = weightBefore;
+    if (scale.is_ready()) {
+      float w = scale.get_units(5); // Plus de lectures post-depot pour etre sur
+      if (w < 0) w = 0;
+      weightAfter = w;
+    }
+    Serial.printf("Weight before: %.3f kg | after: %.3f kg\n", weightBefore, weightAfter);
+
+    // Declencher l'API pour les points
+    sendDepositCloseEvent(weightAfter, detType);
+
+    // Bip succes
+    for (int i = 0; i < 2; i++) {
+      digitalWrite(BUZZER_PIN, HIGH); delay(100);
+      digitalWrite(BUZZER_PIN, LOW);  delay(100);
+    }
+  } else {
+    Serial.println("MAUVAIS TYPE — refuse");
+    lcdMessage("Bin: " + BIN_TYPE, "Seulement!");
+    servo.write(0);
+    
+    // Declencher l'API pour enregistrer le depot invalide (points negatifs)
+    sendDepositCloseEvent(weightBefore, detType);
+    
+    // Bip alerte
+    digitalWrite(BUZZER_PIN, HIGH); delay(800);
+    digitalWrite(BUZZER_PIN, LOW);
+  }
+  delay(2000);
+  lcd.clear();
+}
+
+// ── SCAN AVEC ATTENTE NON-BLOQUANTE ──────────────────
+// Envoie SCAN a la CAM, attend jusqu'a CAM_TIMEOUT_MS
+// Pendant l'attente: lit les capteurs et met a jour LCD
+void triggerCamAndWait() {
+  Serial.println("Envoi SCAN a la CAM...");
+  lcdMessage("Analyse...", "Patientez");
+
+  camResultReceived = false;
+
+  // Envoyer trigger SCAN
+  strcpy(trigMsg.command, "SCAN");
+  esp_now_send(camMAC, (uint8_t*)&trigMsg, sizeof(trigMsg));
+
+  unsigned long startTime = millis();
+
+  // Attente non-bloquante avec lecture capteurs
+  while (!camResultReceived && (millis() - startTime < CAM_TIMEOUT_MS)) {
+    // Pendant l'attente: continuer a servir les capteurs
+    // (pas d'API call ici pour ne pas bloquer)
+    delay(50);
   }
 
-  newDetection = false;
-  Serial.println("Decision pour type: " + detectedType + " | Bin accepte: " + BIN_TYPE);
+  if (camResultReceived) {
+    Serial.printf("Reponse CAM: %s (en %lums)\n",
+      detectedType.c_str(), millis() - startTime);
 
-  if (detectedType == BIN_TYPE) {
-    // ✅ BON TYPE — ouvrir la poubelle
-    Serial.println("BON TYPE — Ouverture servo");
+    // Snapshot poids juste AVANT ouverture
+    float weightBeforeDeposit = 0;
+    if (scale.is_ready()) {
+      float p = scale.get_units(3);
+      weightBeforeDeposit = (p < 0) ? 0 : p;
+    }
 
-    lcdMessage("Merci !", BIN_TYPE + " accepte !");
-    servo.write(140);
-    delay(4000);
-    servo.write(0);
-
-    // Bip de succès court
-    digitalWrite(BUZZER_PIN, HIGH);
-    delay(100);
-    digitalWrite(BUZZER_PIN, LOW);
-    delay(100);
-    digitalWrite(BUZZER_PIN, HIGH);
-    delay(100);
-    digitalWrite(BUZZER_PIN, LOW);
-
-    delay(1000);
-    lcd.clear();
-
+    handleServoDecision(detectedType, weightBeforeDeposit);
   } else {
-    // ❌ MAUVAIS TYPE — rester fermé + alerter
-    Serial.println("MAUVAIS TYPE — Servo reste ferme");
-
-    servo.write(0); // s'assurer que c'est bien fermé
-
-    lcdMessage("Poubelle " + BIN_TYPE, "Seulement !");
-
-    // Bip d'alerte long
-    digitalWrite(BUZZER_PIN, HIGH);
-    delay(800);
-    digitalWrite(BUZZER_PIN, LOW);
-
-    delay(3000);
+    Serial.println("TIMEOUT: pas de reponse de la CAM en 8s");
+    lcdMessage("CAM timeout", "Reessayez");
+    delay(2000);
     lcd.clear();
   }
 }
@@ -174,23 +323,30 @@ void setup() {
   lcd.createChar(1, serverIcon);
   lcdMessage("NaqiAI", "Demarrage...");
 
-  // WiFi — WIFI_STA obligatoire pour ESP-NOW
+  // WiFi
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to WiFi");
+  Serial.print("Connecting WiFi");
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+    delay(500); Serial.print(".");
   }
   Serial.println("\nWiFi OK — IP: " + WiFi.localIP().toString());
+  Serial.println("MAC: " + WiFi.macAddress());
 
   // ESP-NOW
   if (esp_now_init() != ESP_OK) {
     Serial.println("ESP-NOW init FAILED");
-    lcdMessage("ESP-NOW", "ERREUR !");
+    lcdMessage("ESP-NOW", "ERREUR!");
   } else {
+    esp_now_register_send_cb(onSent);
     esp_now_register_recv_cb(onReceive);
-    Serial.println("ESP-NOW OK — en attente messages CAM");
+
+    esp_now_peer_info_t peer = {};
+    memcpy(peer.peer_addr, camMAC, 6);
+    peer.channel = 0;
+    peer.encrypt = false;
+    esp_now_add_peer(&peer);
+    Serial.println("ESP-NOW OK");
   }
 
   // Capteurs
@@ -207,111 +363,42 @@ void setup() {
   scale.set_scale(facteur_etalon);
   scale.tare();
 
-  lcdMessage("NaqiAI Pret !", "Bin: " + BIN_TYPE);
+  lcdMessage("NaqiAI Pret!", "Bin: " + BIN_TYPE);
   delay(2000);
   lcd.clear();
 }
 
 // ── LOOP ─────────────────────────────────────────────
 void loop() {
+  SensorData sensors = readAllSensors();
 
-  // ── LECTURE CAPTEURS ─────────────────────────────
-  int   gasLevel          = map(analogRead(GAS_SENSOR_A0), 0, 1200, 0, 20);
-  float humidity          = dht.readHumidity();
-  float temperature       = dht.readTemperature();
-  float objDistance       = readUltrasonicCM(TRIG_OBJ, ECHO_OBJ);
-  int   rawValue          = analogRead(WATER_SENSOR_PIN);
-  float trashDistance     = lireDistance();
-  float trashLevelPercent = calculerNiveau(trashDistance);
-  float weight            = 0;
+  // ── Affichage LCD normal ─────────────────────────
+  updateLCDNormal(sensors.trashLevelPercent);
 
-  if (scale.is_ready()) {
-    float poids = scale.get_units(5);
-    if (poids < 0) poids = 0;
-    weight = poids;
-    Serial.printf("Poids: %.2f kg\n", weight);
-  }
-
-  // ── AFFICHAGE LCD NORMAL ──────────────────────────
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Trash:");
-  lcd.print((int)trashLevelPercent);
-  lcd.print("% ");
-
-  // Icone WiFi en haut droite
-  lcd.setCursor(15, 0);
-  if (WiFi.status() == WL_CONNECTED) lcd.write(byte(0));
-
-  lcd.setCursor(0, 1);
-  if      (trashLevelPercent < 20) lcd.print("LOW   ");
-  else if (trashLevelPercent < 80) lcd.print("MEDIUM");
-  else                             lcd.print("FULL  ");
-
-  // Icone serveur en bas droite
-  lcd.setCursor(15, 1);
-  if (isConnectToServer) lcd.write(byte(1));
-
-  // ── DÉTECTION OBJET → LOGIQUE SERVO ──────────────
+  // ── Detection objet → trigger CAM + attente ──────
+  float objDistance = readUltrasonicCM(TRIG_OBJ, ECHO_OBJ);
   if (objDistance > 0 && objDistance < 15) {
     Serial.printf("Objet detecte a %.1f cm\n", objDistance);
-    handleServoDecision();
+
+    // Anti-rebond: attendre confirmation pendant 500ms
+    delay(500);
+    objDistance = readUltrasonicCM(TRIG_OBJ, ECHO_OBJ);
+    if (objDistance > 0 && objDistance < 15) {
+      triggerCamAndWait(); // envoie SCAN, attend resultat, actionne servo
+    }
   }
 
-  // ── BUZZER EAU ───────────────────────────────────
-  int waterLevelPercent = map(rawValue, dryValue, wetValue, 0, 100);
-  waterLevelPercent = constrain(waterLevelPercent, 0, 100);
-  Serial.printf("Water: %d%%\n", waterLevelPercent);
-
-  if (waterLevelPercent > 50) {
+  // ── Buzzer eau ───────────────────────────────────
+  if (sensors.waterLevelPercent > 50) {
     digitalWrite(BUZZER_PIN, HIGH);
     delay(1000);
     digitalWrite(BUZZER_PIN, LOW);
   }
 
-  // ── ENVOI API TOUTES LES 10 SECONDES ─────────────
+  // ── Envoi API toutes les 10 secondes ─────────────
   if (millis() - lastSend > sendInterval) {
     lastSend = millis();
-
-    if (isnan(humidity))          humidity          = 0;
-    if (isnan(temperature))       temperature       = 0;
-    if (isnan(weight))            weight            = 0;
-    if (isnan(trashLevelPercent)) trashLevelPercent = 0;
-
-    // Utiliser le type détecté par la CAM si disponible
-    String trashTypeToSend = (detectedType != "") ? detectedType : "unknown";
-
-    String jsonData = "{";
-    jsonData += "\"bin_id\": \"trash_1\",";
-    jsonData += "\"gaz_level\": "    + String(gasLevel)          + ",";
-    jsonData += "\"humidity\": "     + String(humidity)          + ",";
-    jsonData += "\"temperature\": "  + String(temperature)       + ",";
-    jsonData += "\"location\": {\"latitude\": 32.376553, \"longitude\": -6.320284},";
-    jsonData += "\"name\": \"Bin 1 - Lobby\",";
-    jsonData += "\"trash_level\": "  + String(trashLevelPercent) + ",";
-    jsonData += "\"trash_type\": \""  + trashTypeToSend           + "\",";
-    jsonData += "\"weight\": "       + String(weight)            + ",";
-    jsonData += "\"volume\": 100,";
-    jsonData += "\"water_level\": "  + String(waterLevelPercent);
-    jsonData += "}";
-
-    Serial.println("==================================================");
-    Serial.println("Sending: " + jsonData);
-    Serial.println("==================================================");
-
-    HTTPClient http;
-    http.begin(serverName);
-    http.addHeader("Content-Type", "application/json");
-
-    int httpResponseCode = http.POST(jsonData);
-    if (httpResponseCode > 0) {
-      Serial.println("Server: " + http.getString());
-      isConnectToServer = true;
-    } else {
-      Serial.println("HTTP Error: " + String(httpResponseCode));
-      isConnectToServer = false;
-    }
-    http.end();
+    sendToAPI(sensors);
   }
 
   delay(100);

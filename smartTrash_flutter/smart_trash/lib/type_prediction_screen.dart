@@ -19,37 +19,42 @@ class TypePredictionScreen extends StatefulWidget {
 }
 
 class _TypePredictionScreenState extends State<TypePredictionScreen> {
+  // ── DESIGN SYSTEM CONSTANTS ──
+  static const Color _kBg        = Color(0xFFF5F3EE);
+  static const Color _kSurface   = Color(0xFFFFFFFF);
+  static const Color _kBorder    = Color(0xFFE2DDD5);
+  static const Color _kPale      = Color(0xFFDCF0E0);
+  static const Color _kLight     = Color(0xFF8EBF93);
+  static const Color _kMid       = Color(0xFF5C8E60);
+  static const Color _kPrimary   = Color(0xFF2A4A30);
+  static const Color _kAlert     = Color(0xFFB86B2A);
+  static const Color _kTextSec   = Color(0xFF7A8A7C);
+  static const Color _kTextDark  = Color(0xFF2A4A30);
+
   XFile? _imageFile;
-  String _predictionResult = "No image selected. Please choose or take a photo.";
-  bool _isLoading = false; // For image prediction loading
+  String _predictionResult = "Sélectionnez une image pour commencer l'analyse.";
+  bool _isLoading = false;
   String? _errorMessage;
   String? _serverUrl;
-  String? _predictedTrashType; // Stores the predicted trash type
+  String? _predictedTrashType;
+  bool _isSearchingBins = false;
 
-  bool _isSearchingBins = false; // New: Loading state for bin search
-
-  final BinSearchService _binSearchService = BinSearchService(); // New: Instance of the service
-
-  // Initialize the AppSettings instance
+  final BinSearchService _binSearchService = BinSearchService();
   final AppSettings appSettings = AppSettings();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadServerUrl();
-    });
+    _loadServerUrl();
   }
 
   Future<void> _loadServerUrl() async {
-    // Correctly access AppSettings using Provider
-    await appSettings.loadSettings(); // Ensure settings are loaded from Firebase
+    await appSettings.loadSettings();
     if (!mounted) return;
     setState(() {
       _serverUrl = appSettings.rotageServerUrl;
       if (_serverUrl == null || _serverUrl!.isEmpty) {
-        _errorMessage = "Server URL is not configured in app settings.";
-        _predictionResult = "Cannot connect to server without a URL.";
+        _errorMessage = "Serveur non configuré.";
       }
     });
   }
@@ -57,387 +62,366 @@ class _TypePredictionScreenState extends State<TypePredictionScreen> {
   Future<void> _pickImage(ImageSource source) async {
     setState(() {
       _errorMessage = null;
-      _predictionResult = "No image selected. Please choose or take a photo.";
-      _imageFile = null; // Clear previous image on new selection
-      _predictedTrashType = null; // Clear previous prediction type
+      _predictionResult = "Prêt pour l'analyse.";
+      _imageFile = null;
+      _predictedTrashType = null;
     });
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? pickedFile = await picker.pickImage(source: source);
-
       if (pickedFile != null) {
         setState(() {
           _imageFile = pickedFile;
-          _predictionResult = "Image selected. Ready to predict.";
-        });
-      } else {
-        setState(() {
-          _predictionResult = "No image selected.";
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Failed to pick image: $e';
-        _predictionResult = "Error picking image.";
+        _errorMessage = 'Erreur: $e';
       });
-      DebugLogger.addDebugMessage('Error picking image: $e');
     }
   }
 
   Future<void> _predictTrashType() async {
     if (_serverUrl == null || _serverUrl!.isEmpty) {
-      setState(() {
-        _errorMessage = "Server URL is not configured. Please set it in app settings.";
-      });
+      setState(() { _errorMessage = "Serveur non configuré."; });
       return;
     }
-
     if (_imageFile == null) {
-      setState(() {
-        _errorMessage = "Please select an image first.";
-      });
+      setState(() { _errorMessage = "Veuillez choisir une image."; });
       return;
     }
 
     setState(() {
       _isLoading = true;
-      _predictionResult = "Predicting...";
+      _predictionResult = "Analyse en cours...";
       _errorMessage = null;
-      _predictedTrashType = null; // Clear old prediction
+      _predictedTrashType = null;
     });
 
     try {
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$_serverUrl/predict/trash_type'), // Confirm this is the correct Flask endpoint
-      );
-
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          await _imageFile!.readAsBytes(),
-          filename: _imageFile!.name,
-        ),
-      );
-
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
+      var request = http.MultipartRequest('POST', Uri.parse('$_serverUrl/predict/trash_type'));
+      request.files.add(http.MultipartFile.fromBytes('file', await _imageFile!.readAsBytes(), filename: _imageFile!.name));
+      var response = await http.Response.fromStream(await request.send());
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-        final String predictedClass = responseData['predicted_class'] ?? 'Unknown'; // Ensure 'class' matches your server's JSON key
-
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        final String res = data['predicted_class'] ?? 'Inconnu';
         setState(() {
-          _predictedTrashType = predictedClass; // Store the predicted type
-          _predictionResult = "Predicted Type: $predictedClass";
+          _predictedTrashType = res;
+          _predictionResult = res;
         });
-
       } else {
         setState(() {
-          _errorMessage = 'Server error: ${response.statusCode} - ${response.reasonPhrase ?? 'Unknown'}\n${response.body}';
-          _predictionResult = "Prediction failed.";
+          _errorMessage = 'Erreur serveur (${response.statusCode})';
         });
-        DebugLogger.addDebugMessage('Server error: ${response.statusCode}\n${response.body}');
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Network or parsing error: $e';
-        _predictionResult = "Prediction failed. Check server connection.";
-      });
-      DebugLogger.addDebugMessage('Network or parsing error: $e');
+      setState(() { _errorMessage = 'Erreur réseau: $e'; });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() { _isLoading = false; });
     }
   }
 
-  // NEW: Method to trigger bin search and display results
   Future<void> _searchAndDisplayBins() async {
-    if (_predictedTrashType == null || _predictedTrashType == 'Unknown') {
-      setState(() {
-        _errorMessage = "Cannot search for bins, trash type is unknown.";
-      });
-      return;
-    }
-
-    setState(() {
-      _isSearchingBins = true;
-      _errorMessage = null;
-    });
-
+    if (_predictedTrashType == null) return;
+    setState(() { _isSearchingBins = true; });
     try {
       final bins = await _binSearchService.findNearestBinsOfType(_predictedTrashType!);
-      if (mounted) {
-        setState(() {
-          if (bins.isEmpty) {
-            _predictionResult = "No bins found for type '$_predictedTrashType' near you.";
-          } else {
-            _predictionResult = "Predicted Type: $_predictedTrashType"; // Reaffirm prediction
-          }
-        });
-        _showBinListDialog(bins); // Show dialog with bin names
-      }
+      if (mounted) _showBinListDialog(bins);
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = "Error searching for bins: ${e.toString()}"; // Show full error from service
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error searching for bins: ${e.toString().split(':').last.trim()}")),
-        );
-      }
-      DebugLogger.addDebugMessage("Error searching for bins: $e");
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Recherche impossible: $e")));
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSearchingBins = false;
-        });
-      }
+      if (mounted) setState(() { _isSearchingBins = false; });
     }
   }
 
-  // NEW: Dialog to show list of bin names
   void _showBinListDialog(List<TrashBin> bins) {
-    final parentContext = context;
     showDialog(
-      context: parentContext,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text('Nearby $_predictedTrashType Bins'),
-          content: bins.isEmpty
-              ? const Text('No bins of this type found nearby.')
-              : SizedBox(
-                  width: double.maxFinite,
-                  height: MediaQuery.of(dialogContext).size.height * 0.45,
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: bins.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (_, index) {
-                      final bin = bins[index];
-                      return ListTile(
-                        leading: Icon(Icons.delete_outline, color: Theme.of(dialogContext).colorScheme.primary),
-                        title: Text(bin.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(
-                          'Niveau: ${bin.trashLevel.toStringAsFixed(0)}% • Type: ${bin.trashType}',
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.directions, color: Colors.blue, size: 28),
-                          tooltip: 'Itinéraire',
-                          onPressed: () {
-                            Navigator.of(dialogContext).pop();
-                            if (!mounted) return;
-                            Navigator.push(
-                              parentContext,
-                              PageRouteBuilder(
-                                pageBuilder: (_, __, ___) => MapScreen(
-                                  trashBins: [bin],
-                                  initialTrashBin: bin,
-                                  showRoute: true,
-                                ),
-                                transitionsBuilder: (_, a, __, c) {
-                                  final offset = Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
-                                      .animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic));
-                                  return SlideTransition(position: offset, child: FadeTransition(opacity: a, child: c));
-                                },
-                                transitionDuration: const Duration(milliseconds: 350),
-                              ),
-                            );
-                          },
-                        ),
-                        onTap: () {
-                          Navigator.of(dialogContext).pop();
-                          if (!mounted) return;
-                          Navigator.push(
-                            parentContext,
-                            PageRouteBuilder(
-                              pageBuilder: (_, __, ___) => MapScreen(
-                                trashBins: [bin],
-                                initialTrashBin: bin,
-                                showRoute: true,
-                              ),
-                              transitionsBuilder: (_, a, __, c) {
-                                final offset = Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
-                                    .animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic));
-                                return SlideTransition(position: offset, child: FadeTransition(opacity: a, child: c));
-                              },
-                              transitionDuration: const Duration(milliseconds: 350),
-                            ),
-                          );
-                        },
-                      );
-                    },
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _kBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text('Poubelles $_predictedTrashType à proximité', style: const TextStyle(color: _kPrimary, fontWeight: FontWeight.w900, fontSize: 18)),
+        content: bins.isEmpty
+          ? const Text('Aucune poubelle trouvée.', style: TextStyle(color: _kTextSec, fontWeight: FontWeight.w600))
+          : SizedBox(
+              width: double.maxFinite,
+              height: 350,
+              child: ListView.separated(
+                itemCount: bins.length,
+                separatorBuilder: (c, i) => const Divider(color: _kBorder, height: 1),
+                itemBuilder: (c, i) => ListTile(
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: _kPale, borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.delete_rounded, color: _kPrimary, size: 22),
                   ),
+                  title: Text(bins[i].name, style: const TextStyle(color: _kPrimary, fontWeight: FontWeight.w800, fontSize: 14)),
+                  subtitle: Text(
+                    'NIVEAU: ${bins[i].trashLevel.toStringAsFixed(0)}% • TYPE: ${bins[i].trashType}',
+                    style: const TextStyle(color: _kTextSec, fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, color: _kBorder, size: 14),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(context, MaterialPageRoute(builder: (c) => MapScreen(trashBins: [bins[i]], initialTrashBin: bins[i], showRoute: true)));
+                  },
                 ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
+              ),
             ),
-          ],
-        );
-      },
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('FERMER', style: TextStyle(color: _kPrimary, fontWeight: FontWeight.bold)))],
+      ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDesktop = MediaQuery.of(context).size.width > 900;
+    
+    // Status and Error indicators
+    Widget feedbackArea = Column(
+      children: [
+        if (_errorMessage != null)
+          Container(
+            margin: const EdgeInsets.only(top: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFEBEE),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
+                const SizedBox(width: 12),
+                Expanded(child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w600))),
+              ],
+            ),
+          ),
+        if (_isLoading)
+          Padding(
+            padding: const EdgeInsets.only(top: 15),
+            child: Text("ANALYSE DES PIXELS EN COURS...", style: TextStyle(color: _kTextSec, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+          ),
+      ],
+    );
+
+    Widget content = Column(
+      children: [
+        _buildScannerFrame(),
+        const SizedBox(height: 30),
+        _buildCaptureButtons(),
+        const SizedBox(height: 30),
+        _buildPredictionZone(),
+        feedbackArea, // Added feedback here for mobile
+        const SizedBox(height: 20),
+        if (_predictedTrashType != null) _buildResultCard(),
+        const SizedBox(height: 40),
+      ],
+    );
+
+    if (isDesktop) {
+      content = Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(flex: 3, child: _buildScannerFrame()),
+          const SizedBox(width: 40),
+          Expanded(
+            flex: 2,
+            child: Column(
+              children: [
+                _buildCaptureButtons(),
+                const SizedBox(height: 30),
+                _buildPredictionZone(),
+                feedbackArea, // Added feedback here for desktop
+                if (_predictedTrashType != null) _buildResultCard(),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
 
     return Scaffold(
+      backgroundColor: _kBg,
       appBar: AppBar(
-        title: const Text("Trash Type Predictor"),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _kPrimary, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text("AI VISION", style: TextStyle(color: _kPrimary, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              // Image Display Area
-              Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.3), width: 2),
-                ),
-                alignment: Alignment.center,
-                child: _imageFile == null
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.image_search, size: 80, color: theme.colorScheme.onSurface.withValues(alpha: 0.3)),
-                          const SizedBox(height: 10),
-                          Text("No image selected", style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5))),
-                        ],
-                      )
-                    : ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: kIsWeb
-                            ? Image.network(_imageFile!.path, width: double.infinity, height: double.infinity, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildImageErrorWidget())
-                            : Image.file(File(_imageFile!.path), width: double.infinity, height: double.infinity, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildImageErrorWidget()),
-                      ),
-              ),
-              const SizedBox(height: 30),
-
-              // Image Selection Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildActionButton(icon: Icons.camera_alt, label: 'Camera', onPressed: () => _pickImage(ImageSource.camera), color: theme.colorScheme.secondary),
-                  const SizedBox(width: 16),
-                  _buildActionButton(icon: Icons.photo_library, label: 'Gallery', onPressed: () => _pickImage(ImageSource.gallery), color: theme.colorScheme.secondary),
-                ],
-              ),
-              const SizedBox(height: 30),
-
-              // Predict button
-              _isLoading
-                  ? CircularProgressIndicator(color: theme.colorScheme.primary)
-                  : (_serverUrl == null || _serverUrl!.isEmpty)
-                      ? Text(_errorMessage ?? "Server URL not configured.", style: const TextStyle(color: Colors.redAccent), textAlign: TextAlign.center)
-                      : SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: ElevatedButton.icon(
-                            onPressed: _predictTrashType,
-                            icon: const Icon(Icons.cloud_upload),
-                            label: const Text('Predict Trash Type'),
-                          ),
-                        ),
-              const SizedBox(height: 30),
-
-              // Result
-              Container(
-                padding: const EdgeInsets.all(20.0),
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_predictionResult, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                    if (_errorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 15.0),
-                        child: Text('Error: $_errorMessage', style: const TextStyle(color: Colors.redAccent, fontSize: 14)),
-                      ),
-                  ],
-                ),
-              ),
-
-              // Nearest Bins button
-              if (_predictedTrashType != null && _predictedTrashType != 'Unknown') ...[
-                const SizedBox(height: 24),
-                _isSearchingBins
-                    ? CircularProgressIndicator(color: theme.colorScheme.primary)
-                    : SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: OutlinedButton.icon(
-                          onPressed: _searchAndDisplayBins,
-                          icon: const Icon(Icons.location_on),
-                          label: Text('Find Nearest $_predictedTrashType Bins'),
-                        ),
-                      ),
-              ],
-              const SizedBox(height: 20),
-            ],
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            child: content,
           ),
         ),
       ),
     );
   }
 
-  // Helper function for image error display
-  Widget _buildImageErrorWidget() {
+  Widget _buildScannerFrame() {
+    final isDesktop = MediaQuery.of(context).size.width > 900;
     return Container(
-      color: Colors.red.withValues(alpha: 0.2),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.broken_image, color: Colors.redAccent, size: 60),
-          const SizedBox(height: 10),
-          const Text(
-            'Error loading image',
-            style: TextStyle(color: Colors.redAccent, fontSize: 14),
-            textAlign: TextAlign.center,
-          ),
-        ],
+      width: double.infinity,
+      height: isDesktop 
+          ? MediaQuery.of(context).size.height * 0.65 // Limit height on PC
+          : MediaQuery.of(context).size.width * 0.85,
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: _kBorder, width: 2),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 20, offset: const Offset(0, 10))],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          children: [
+            _imageFile == null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.filter_center_focus_rounded, size: 64, color: _kTextSec.withOpacity(0.3)),
+                      const SizedBox(height: 16),
+                      Text("Visez un déchet", style: TextStyle(color: _kTextSec, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                )
+              : Image.network(_imageFile!.path, width: double.infinity, height: double.infinity, fit: BoxFit.cover),
+            if (_isLoading)
+              Container(
+                color: Colors.black.withOpacity(0.1),
+                child: const Center(child: CircularProgressIndicator(color: _kPrimary)),
+              ),
+            // Corners Design
+            _buildCorner(top: 0, left: 0),
+            _buildCorner(top: 0, right: 0, isRight: true),
+            _buildCorner(bottom: 0, left: 0, isBottom: true),
+            _buildCorner(bottom: 0, right: 0, isBottom: true, isRight: true),
+          ],
+        ),
       ),
     );
   }
 
-  // Helper function to build consistent action buttons
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onPressed,
-    required Color color,
-    bool isLarge = false,
-  }) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: isLarge ? 24 : 20),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: isLarge
-            ? const EdgeInsets.symmetric(horizontal: 32, vertical: 16)
-            : const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+  Widget _buildCorner({double? top, double? bottom, double? left, double? right, bool isBottom = false, bool isRight = false}) {
+    return Positioned(
+      top: top, bottom: bottom, left: left, right: right,
+      child: Container(
+        width: 30, height: 30,
+        decoration: BoxDecoration(
+          border: Border(
+            top: top != null ? const BorderSide(color: _kPrimary, width: 4) : BorderSide.none,
+            bottom: bottom != null ? const BorderSide(color: _kPrimary, width: 4) : BorderSide.none,
+            left: left != null ? const BorderSide(color: _kPrimary, width: 4) : BorderSide.none,
+            right: right != null ? const BorderSide(color: _kPrimary, width: 4) : BorderSide.none,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCaptureButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildPillButton(Icons.camera_alt_rounded, "Caméra", () => _pickImage(ImageSource.camera)),
+        const SizedBox(width: 16),
+        _buildPillButton(Icons.photo_library_rounded, "Galerie", () => _pickImage(ImageSource.gallery), isSecondary: true),
+      ],
+    );
+  }
+
+  Widget _buildPillButton(IconData icon, String label, VoidCallback onTap, {bool isSecondary = false}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(100),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        decoration: BoxDecoration(
+          color: isSecondary ? _kSurface : _kPrimary,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(color: isSecondary ? _kBorder : _kPrimary),
+          boxShadow: [BoxShadow(color: (isSecondary ? _kBorder : _kPrimary).withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: isSecondary ? _kPrimary : Colors.white),
+            const SizedBox(width: 8),
+            Text(label, style: TextStyle(color: isSecondary ? _kPrimary : Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPredictionZone() {
+    return SizedBox(
+      width: double.infinity,
+      height: 60,
+      child: ElevatedButton(
+        onPressed: (_imageFile != null && !_isLoading) ? _predictTrashType : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _kPrimary, foregroundColor: Colors.white,
+          disabledBackgroundColor: _kBorder.withOpacity(0.5),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 0,
+        ),
+        child: _isLoading 
+          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+          : const Text("DÉTECTER LE TYPE DE DÉCHET", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
+      ),
+    );
+  }
+
+  Widget _buildResultCard() {
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 500),
+      padding: const EdgeInsets.only(top: 20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: _kSurface,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: _kMid.withOpacity(0.3), width: 2),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.auto_awesome_rounded, color: _kMid, size: 24),
+                const SizedBox(width: 12),
+                Text(_predictedTrashType!.toUpperCase(), style: const TextStyle(color: _kPrimary, fontWeight: FontWeight.w900, fontSize: 22, letterSpacing: 1.2)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(color: _kBorder),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _isSearchingBins ? null : _searchAndDisplayBins,
+              icon: const Icon(Icons.location_on_rounded),
+              label: const Text("TROUVER UNE POUBELLE ADAPTÉE"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kMid, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+

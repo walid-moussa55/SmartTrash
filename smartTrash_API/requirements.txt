@@ -2,6 +2,8 @@ fastapi
 uvicorn
 firebase-admin
 pandas
+matplotlib
+seaborn
 pymongo
 python-dotenv
 pydantic
@@ -15,3 +17,5 @@ scikit-learn
 joblib
 numpy
 pillow
+tslearn
+hmmlearn

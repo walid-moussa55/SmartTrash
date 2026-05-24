@@ -7,11 +7,15 @@ class AppUser {
   final String uid;
   String? email;
   final UserRole role;
+  final int score;
+  final int scoreThreshold;
 
   AppUser({
     required this.uid,
     this.email,
     required this.role,
+    this.score = 0,
+    this.scoreThreshold = 100,
   });
 
   factory AppUser.fromFirebaseAuthUser(fb_auth.User firebaseUser, UserRole role) {
@@ -26,12 +30,24 @@ class AppUser {
   factory AppUser.fromFirebaseMap(String uid, String? email, Map<dynamic, dynamic> data) {
     UserRole role = UserRole.values.firstWhere(
           (e) => e.name == data['role'],
-      orElse: () => UserRole.user, // Default to 'user' if role is missing or invalid
+      orElse: () => UserRole.user,
     );
     return AppUser(
       uid: uid,
-      email: email ?? data['email'], // Use Firebase Auth email preferably
+      email: email ?? data['email'],
       role: role,
+      score: int.tryParse(data['score']?.toString() ?? '0') ?? 0,
+      scoreThreshold: int.tryParse(data['score_threshold']?.toString() ?? '100') ?? 100,
+    );
+  }
+
+  AppUser copyWith({int? score, int? scoreThreshold}) {
+    return AppUser(
+      uid: uid,
+      email: email,
+      role: role,
+      score: score ?? this.score,
+      scoreThreshold: scoreThreshold ?? this.scoreThreshold,
     );
   }
 }

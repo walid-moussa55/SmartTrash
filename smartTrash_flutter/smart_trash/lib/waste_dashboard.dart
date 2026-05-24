@@ -13,64 +13,62 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  // ── DESIGN SYSTEM CONSTANTS ──
+  static const Color _kBg        = Color(0xFFF5F3EE);
+  static const Color _kSurface   = Color(0xFFFFFFFF);
+  static const Color _kBorder    = Color(0xFFE2DDD5);
+  static const Color _kPale      = Color(0xFFDCF0E0);
+  static const Color _kLight     = Color(0xFF8EBF93);
+  static const Color _kMid       = Color(0xFF5C8E60);
+  static const Color _kPrimary   = Color(0xFF2A4A30);
+  static const Color _kAlertPale = Color(0xFFF0E8DC);
+  static const Color _kAlert     = Color(0xFFB86B2A);
+  static const Color _kTextSec   = Color(0xFF7A8A7C);
+  static const Color _kTextDark  = Color(0xFF2A4A30);
+
   List<dynamic> resourceData = [];
   List<dynamic> analyticsData = [];
   bool isLoading = true;
   int currentTabIndex = 0;
-  String? _serverUrl; // To store the server URL from AppSettings
-  String? _errorMessage; // To store error messages
-  Timer? _refreshTimer; // Timer for periodic refresh
+  String? _serverUrl;
+  String? _errorMessage;
+  Timer? _refreshTimer;
 
-  final AppSettings appSettings = AppSettings(); // Instance of AppSettings to access server URL
+  final AppSettings appSettings = AppSettings();
 
   @override
   void initState() {
     super.initState();
     _loadServerUrlAndFetchData();
-    // Set up a periodic timer for refreshing data
     _refreshTimer = Timer.periodic(const Duration(minutes: 5), (Timer t) {
-      if (mounted) { // Only fetch if the widget is still in the tree
-        fetchData();
-      }
+      if (mounted) fetchData();
     });
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel(); // Cancel the timer when the widget is disposed
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _loadServerUrlAndFetchData() async {
-    await appSettings.loadSettings(); // Ensure settings are loaded
+    await appSettings.loadSettings();
     if (mounted) {
       setState(() {
         _serverUrl = appSettings.rotageServerUrl;
         if (_serverUrl == null || _serverUrl!.isEmpty) {
-          _errorMessage = "Server URL is not configured in app settings.";
-          // Do not proceed with fetch if URL is missing
+          _errorMessage = "Server URL is not configured.";
           isLoading = false;
         } else {
-          fetchData(); // Fetch data only if URL is available
+          fetchData();
         }
       });
     }
   }
 
-
   Future<void> fetchData() async {
-    if (_serverUrl == null || _serverUrl!.isEmpty) {
-      setState(() {
-        isLoading = false;
-        _errorMessage = "Server URL is missing. Cannot fetch data.";
-      });
-      return;
-    }
-
-    setState(() {
-      isLoading = true;
-      _errorMessage = null;
-    });
+    if (_serverUrl == null || _serverUrl!.isEmpty) return;
+    setState(() { isLoading = true; _errorMessage = null; });
     
     try {
       final resourceResponse = await http.get(Uri.parse('$_serverUrl/resource-management'));
@@ -84,76 +82,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
           isLoading = false;
         });
       } else {
-        String errorDetail = 'Failed to load data. ';
-        if (resourceResponse.statusCode != 200) {
-          errorDetail += 'Resource Management Error: ${resourceResponse.statusCode} ${resourceResponse.reasonPhrase}';
-        }
-        if (analyticsResponse.statusCode != 200) {
-          if (resourceResponse.statusCode == 200) errorDetail += 'Bin Analytics Error: ';
-          errorDetail += '${analyticsResponse.statusCode} ${analyticsResponse.reasonPhrase}';
-        }
-        throw Exception(errorDetail);
+        throw Exception('Failed to load dashboard data');
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        isLoading = false;
-        _errorMessage = 'Erreur: ${e.toString()}';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: ${e.toString()}')),
-      );
+      setState(() { isLoading = false; _errorMessage = 'Erreur de connexion'; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
+      backgroundColor: _kBg,
       appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.recycling, color: theme.colorScheme.primary),
-            const SizedBox(width: 10),
-            const Flexible(child: Text('Dashboard', overflow: TextOverflow.ellipsis)),
-          ],
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _kPrimary, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'ANALYTIQUES IA',
+          style: TextStyle(color: _kPrimary, fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: 1.2),
         ),
       ),
       body: _isLoadingContent(),
       floatingActionButton: FloatingActionButton(
+        elevation: 4,
+        backgroundColor: _kPrimary,
         onPressed: fetchData,
-        child: const Icon(Icons.refresh),
+        child: const Icon(Icons.refresh_rounded, color: Colors.white),
       ),
     );
   }
 
   Widget _isLoadingContent() {
-    final theme = Theme.of(context);
     if (isLoading) {
-      return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
+      return const Center(child: CircularProgressIndicator(color: _kPrimary));
     } else if (_errorMessage != null) {
       return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 16), textAlign: TextAlign.center),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, color: _kAlert, size: 48),
+            const SizedBox(height: 16),
+            Text(_errorMessage!, style: const TextStyle(color: _kTextSec)),
+          ],
         ),
       );
     } else if (resourceData.isEmpty && analyticsData.isEmpty) {
-      return Center(
-        child: Text("No data available.", style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 16), textAlign: TextAlign.center),
-      );
+      return const Center(child: Text("Aucune donnée disponible", style: TextStyle(color: _kTextSec)));
     } else {
       return SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
           child: Column(
             children: [
               _buildKPICards(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 30),
               _buildTabBar(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 25),
               _buildCurrentTabContent(),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -161,48 +152,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-
   Widget _buildKPICards() {
-    // Ensure data is not empty before accessing
-    if (resourceData.isEmpty) {
-      return const SizedBox.shrink(); // Or a placeholder
-    }
+    if (resourceData.isEmpty) return const SizedBox.shrink();
+
     final fullBins = resourceData.where((bin) => bin['trash_level'] != null && bin['trash_level'] >= 80).length;
-    // Industry-standard values (sources: ISWA, NREL, World Bank "What a Waste 2.0")
-    const int binsPerTruck = 25;   // Large public containers per rear-loader route
-    const int workersPerTruck = 3; // 1 driver + 2 collectors (ISWA standard)
-    const int fuelPerTruck = 35;   // Liters of diesel per urban collection route (~70 km)
+    const int binsPerTruck = 25;
+    const int workersPerTruck = 3;
+    const int fuelPerTruck = 35;
     final trucksNeeded = (fullBins / binsPerTruck).ceil();
     final workersNeeded = trucksNeeded * workersPerTruck;
     final fuelNeeded = trucksNeeded * fuelPerTruck;
 
     return Wrap(
-      spacing: 20,
-      runSpacing: 20,
+      spacing: 16,
+      runSpacing: 16,
       alignment: WrapAlignment.center,
       children: [
-      _buildKPICard(
-        icon: Icons.delete,
-        title: 'Poubelles pleines (>80%)',
-        value: fullBins.toString(),
-        color: const Color(0xFFe74c3c),
-      ),
-      _buildKPICard(
-        icon: Icons.local_shipping,
-        title: 'Camions nécessaires',
-        value: trucksNeeded.toString(),
-        color: const Color(0xFFFFAB40),
-        subtitle: '($binsPerTruck poubelles/camion)',
-        extraInfo: 'Gasoil: ${fuelNeeded}L',
-        extraColor: const Color(0xFFFFD700),
-      ),
-      _buildKPICard(
-        icon: Icons.people,
-        title: 'Employés requis',
-        value: workersNeeded.toString(),
-        color: const Color(0xFF1abc9c),
-        subtitle: '($workersPerTruck employés/camion)',
-      ),
+        _buildKPICard(
+          icon: Icons.auto_delete_rounded,
+          title: 'Poubelles Pleines',
+          value: '$fullBins',
+          caption: '>80% Remplissage',
+          color: _kAlert,
+          bgColor: _kAlertPale,
+        ),
+        _buildKPICard(
+          icon: Icons.local_shipping_rounded,
+          title: 'Logistique Camions',
+          value: '$trucksNeeded',
+          caption: '$binsPerTruck bins/camion',
+          extra: 'Gasoil: ${fuelNeeded}L',
+          color: _kMid,
+          bgColor: _kPale,
+        ),
+        _buildKPICard(
+          icon: Icons.engineering_rounded,
+          title: 'Main d\'œuvre',
+          value: '$workersNeeded',
+          caption: '$workersPerTruck pers/camion',
+          color: _kPrimary,
+          bgColor: _kPale,
+        ),
       ],
     );
   }
@@ -211,76 +201,106 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required IconData icon,
     required String title,
     required String value,
+    required String caption,
+    String? extra,
     required Color color,
-    String? subtitle,
-    String? extraInfo,
-    Color? extraColor,
+    required Color bgColor,
   }) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SizedBox(
-          width: 250,
-          child: Column(
-            children: [
-              Icon(icon, size: 36, color: theme.colorScheme.primary),
-              const SizedBox(height: 8),
-              Text(title, style: const TextStyle(fontSize: 16)),
-              const SizedBox(height: 8),
-              Text(value, style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: color)),
-              if (subtitle != null) ...[
-                const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(fontSize: 12)),
-              ],
-              if (extraInfo != null) ...[
-                const SizedBox(height: 8),
-                Text(extraInfo, 
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: extraColor)),
-              ],
-            ],
+    return Container(
+      width: 400,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _kBorder.withOpacity(0.5)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: color, size: 28),
           ),
-        ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kTextSec)),
+                const SizedBox(height: 4),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(value, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: _kTextDark)),
+                    const SizedBox(width: 6),
+                    if (extra != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(extra, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kAlert)),
+                      ),
+                  ],
+                ),
+                Text(caption, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: _kTextSec.withOpacity(0.7))),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildTabBar() {
-    final theme = Theme.of(context);
-    const tabs = [
-      {'icon': Icons.bar_chart, 'label': 'Niveaux de remplissage'},
-      {'icon': Icons.thermostat, 'label': 'Environnement'},
-      {'icon': Icons.delete, 'label': 'Types de déchets'},
-      {'icon': Icons.air, 'label': 'Analyse des gaz'},
+    final tabs = [
+      {'icon': Icons.analytics_rounded, 'label': 'Remplissage'},
+      {'icon': Icons.thermostat_auto_rounded, 'label': 'Environnement'},
+      {'icon': Icons.category_rounded, 'label': 'Déchets'},
+      {'icon': Icons.air_rounded, 'label': 'Gaz'},
     ];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(tabs.length, (index) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            child: ChoiceChip(
-              label: Row(
+          final isSelected = currentTabIndex == index;
+          return GestureDetector(
+            onTap: () => setState(() => currentTabIndex = index),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              decoration: BoxDecoration(
+                color: isSelected ? _kPrimary : _kSurface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: isSelected ? _kPrimary : _kBorder.withOpacity(0.5)),
+                boxShadow: isSelected ? [
+                  BoxShadow(color: _kPrimary.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4)),
+                ] : [],
+              ),
+              child: Row(
                 children: [
-                  Icon(tabs[index]['icon'] as IconData, size: 18),
-                  const SizedBox(width: 6),
-                  Text(tabs[index]['label'] as String),
+                  Icon(
+                    tabs[index]['icon'] as IconData, 
+                    size: 18, 
+                    color: isSelected ? Colors.white : _kTextSec
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    tabs[index]['label'] as String,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : _kTextDark,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
-              ),
-              selected: currentTabIndex == index,
-              onSelected: (selected) {
-                setState(() => currentTabIndex = index);
-              },
-              selectedColor: theme.colorScheme.primary,
-              backgroundColor: theme.colorScheme.surface,
-              labelStyle: TextStyle(
-                color: currentTabIndex == index ? Colors.white : theme.colorScheme.primary,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-                side: BorderSide(color: theme.colorScheme.primary),
               ),
             ),
           );
@@ -290,30 +310,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildCurrentTabContent() {
-    // Ensure analyticsData is not empty before building charts
-    if (analyticsData.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text(
-            "No analytics data to display charts.",
-            style: TextStyle(),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
-    }
+    if (analyticsData.isEmpty) return const SizedBox.shrink();
     switch (currentTabIndex) {
-      case 0:
-        return _buildFillLevelTab();
-      case 1:
-        return _buildEnvironmentTab();
-      case 2:
-        return _buildTrashTypesTab();
-      case 3:
-        return _buildGasAnalysisTab();
-      default:
-        return Container();
+      case 0: return _buildFillLevelTab();
+      case 1: return _buildEnvironmentTab();
+      case 2: return _buildTrashTypesTab();
+      case 3: return _buildGasAnalysisTab();
+      default: return const SizedBox.shrink();
     }
   }
 
@@ -321,129 +324,67 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Column(
       children: [
         _buildChartCard(
-          title: 'Niveaux de remplissage',
+          title: 'Niveaux de Remplissage',
           chart: SfCartesianChart(
+            plotAreaBorderWidth: 0,
             primaryXAxis: CategoryAxis(
-              labelStyle: const TextStyle(),
+              majorGridLines: const MajorGridLines(width: 0),
+              labelStyle: const TextStyle(color: _kTextSec, fontWeight: FontWeight.w600),
             ),
             primaryYAxis: NumericAxis(
-              minimum: 0,
-              maximum: 100,
-              labelStyle: const TextStyle(),
-            ),
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.bottom,
-              textStyle: TextStyle(),
+              minimum: 0, maximum: 100, axisLine: const AxisLine(width: 0),
+              majorTickLines: const MajorTickLines(size: 0),
+              labelStyle: const TextStyle(color: _kTextSec),
             ),
             series: <CartesianSeries>[
               ColumnSeries<dynamic, String>(
-                name: 'Niveau de remplissage',
                 dataSource: analyticsData,
                 xValueMapper: (data, _) => data['name'],
                 yValueMapper: (data, _) => data['trash_level'],
-                color: const Color(0xFF9b59b6),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                gradient: const LinearGradient(
+                  colors: [_kMid, _kLight],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                ),
                 dataLabelSettings: const DataLabelSettings(
                   isVisible: true,
-                  labelAlignment: ChartDataLabelAlignment.top,
-                  textStyle: TextStyle(),
+                  textStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _kPrimary),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 20),
         _buildChartCard(
-          title: 'État des poubelles',
+          title: 'État Global du Parc',
           chart: SfCircularChart(
+            margin: EdgeInsets.zero,
             legend: const Legend(
-              isVisible: true,
+              isVisible: true, 
               position: LegendPosition.bottom,
-              textStyle: TextStyle(),
+              textStyle: TextStyle(color: _kTextDark, fontWeight: FontWeight.w700, fontSize: 12),
             ),
             series: <CircularSeries>[
               DoughnutSeries<dynamic, String>(
+                innerRadius: '65%',
                 dataSource: [
-                  {'status': 'Poubelles pleines', 'count': analyticsData.where((bin) => bin['trash_level'] != null && bin['trash_level'] >= 80).length},
-                  {'status': 'Gaz élevé', 'count': analyticsData.where((bin) => bin['gaz_level'] != null && bin['gaz_level'] >= 10).length},
-                  {'status': 'Normal', 'count': analyticsData.length - analyticsData.where((bin) => (bin['trash_level'] != null && bin['trash_level'] >= 80) || (bin['gaz_level'] != null && bin['gaz_level'] >= 10)).length},
+                  {'status': 'Pleine', 'count': analyticsData.where((b) => b['trash_level'] != null && b['trash_level'] >= 80).length},
+                  {'status': 'Gaz Alerte', 'count': analyticsData.where((b) => b['gaz_level'] != null && b['gaz_level'] >= 10).length},
+                  {'status': 'Normal', 'count': analyticsData.length - analyticsData.where((b) => (b['trash_level'] != null && b['trash_level'] >= 80) || (b['gaz_level'] != null && b['gaz_level'] >= 10)).length},
                 ],
                 xValueMapper: (data, _) => data['status'],
                 yValueMapper: (data, _) => data['count'],
-                pointColorMapper: (data, _) {
-                  if (data['status'] == 'Poubelles pleines') return const Color(0xFFe74c3c);
-                  if (data['status'] == 'Gaz élevé') return const Color(0xFFf39c12);
-                  return const Color(0xFF2ecc71);
+                pointColorMapper: (d, _) {
+                  if (d['status'] == 'Pleine') return const Color(0xFFD35400); // Orange foncé vibrant
+                  if (d['status'] == 'Gaz Alerte') return _kPrimary; // Vert très foncé
+                  return _kLight; // Vert clair Naqi
                 },
                 dataLabelSettings: const DataLabelSettings(
                   isVisible: true,
-                  textStyle: TextStyle(),
+                  textStyle: TextStyle(color: _kTextDark, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildChartCard(
-          title: 'Poids moyen par type',
-          chart: SfCartesianChart(
-            primaryXAxis: CategoryAxis(
-              labelStyle: const TextStyle(),
-            ),
-            primaryYAxis: NumericAxis(
-              labelStyle: const TextStyle(),
-            ),
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.bottom,
-              textStyle: TextStyle(),
-            ),
-            series: <CartesianSeries>[
-              ColumnSeries<Map<String, dynamic>, String>(
-                name: 'Poids moyen',
-                dataSource: _calculateAverageWeightByType(),
-                xValueMapper: (data, _) => data['type'],
-                yValueMapper: (data, _) => data['avgWeight'],
-                color: const Color(0xFF9b59b6),
-                dataLabelSettings: const DataLabelSettings(
-                  isVisible: true,
-                  textStyle: TextStyle(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildChartCard(
-          title: 'Répartition géographique',
-          chart: SfCartesianChart(
-            primaryXAxis: NumericAxis(
-              title: AxisTitle(text: 'Longitude', textStyle: const TextStyle(color: Color(0xFF9b59b6))),
-              labelStyle: const TextStyle(),
-            ),
-            primaryYAxis: NumericAxis(
-              title: AxisTitle(text: 'Latitude', textStyle: const TextStyle(color: Color(0xFF3498db))),
-              labelStyle: const TextStyle(),
-            ),
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.bottom,
-              textStyle: TextStyle(),
-            ),
-            series: _buildTrashTypeLocationSeries(),
-            tooltipBehavior: TooltipBehavior(
-              enable: true,
-              format: 'point.x, point.y',
-              builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
-                return Container(
-                  padding: const EdgeInsets.all(8),
-                  child: Text(
-                    '${data['name']}\nPosition: ${point.y.toStringAsFixed(4)}°N, ${point.x.toStringAsFixed(4)}°E\nRemplissage: ${data['trash_level']}%',
-                    style: const TextStyle(),
-                  ),
-                );
-              },
-            ),
           ),
         ),
       ],
@@ -454,161 +395,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Column(
       children: [
         _buildChartCard(
-          title: 'Température et humidité',
+          title: 'Température et Humidité',
           chart: SfCartesianChart(
+            plotAreaBorderWidth: 0,
+            legend: const Legend(isVisible: true, position: LegendPosition.top),
             primaryXAxis: CategoryAxis(
-              labelStyle: const TextStyle(),
+              majorGridLines: const MajorGridLines(width: 0),
+              labelStyle: const TextStyle(color: _kTextSec, fontWeight: FontWeight.w700, fontSize: 11),
             ),
             primaryYAxis: NumericAxis(
-              title: AxisTitle(text: 'Température (°C)', textStyle: const TextStyle(color: Color(0xFFe74c3c))),
-              labelStyle: const TextStyle(color: Color(0xFFe74c3c)),
+              title: AxisTitle(text: 'Temp (°C)', textStyle: const TextStyle(color: _kAlert, fontWeight: FontWeight.bold, fontSize: 10)),
+              axisLine: const AxisLine(width: 0),
+              labelStyle: const TextStyle(color: _kAlert, fontWeight: FontWeight.w600),
             ),
             axes: [
               NumericAxis(
-                name: 'HumidityAxis',
-                opposedPosition: true,
-                title: AxisTitle(text: 'Humidité (%)', textStyle: const TextStyle(color: Color(0xFF3498db))),
-                labelStyle: const TextStyle(color: Color(0xFF3498db)),
-                minimum: 0,
-                maximum: 100,
+                name: 'H', 
+                opposedPosition: true, 
+                title: AxisTitle(text: 'Hum (%)', textStyle: const TextStyle(color: _kMid, fontWeight: FontWeight.bold, fontSize: 10)), 
+                labelStyle: const TextStyle(color: _kMid, fontWeight: FontWeight.w600), 
+                minimum: 0, 
+                maximum: 100
               ),
             ],
             series: <CartesianSeries>[
-              LineSeries<dynamic, String>(
-                dataSource: analyticsData,
-                xValueMapper: (data, _) => data['name'],
-                yValueMapper: (data, _) => data['temperature'],
-                name: 'Température',
-                color: const Color(0xFFe74c3c),
+              SplineSeries<dynamic, String>(
+                dataSource: analyticsData, 
+                xValueMapper: (d, _) => d['name'], 
+                yValueMapper: (d, _) => d['temperature'], 
+                name: 'Temp', 
+                color: _kAlert, 
+                width: 4,
+                markerSettings: const MarkerSettings(isVisible: true, borderWidth: 2, borderColor: Colors.white),
+                dataLabelSettings: const DataLabelSettings(isVisible: true, textStyle: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: _kAlert)),
               ),
-              LineSeries<dynamic, String>(
-                dataSource: analyticsData,
-                xValueMapper: (data, _) => data['name'],
-                yValueMapper: (data, _) => data['humidity'],
-                name: 'Humidité',
-                yAxisName: 'HumidityAxis',
-                color: const Color(0xFF3498db),
-              ),
-            ],
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.top,
-              textStyle: TextStyle(),
-            ),
-            tooltipBehavior: TooltipBehavior(enable: true),
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildChartCard(
-          title: 'Distribution des températures',
-          chart: SfCartesianChart(
-            primaryXAxis: CategoryAxis(
-              labelStyle: const TextStyle(),
-            ),
-            primaryYAxis: NumericAxis(
-              labelStyle: const TextStyle(),
-            ),
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.bottom,
-              textStyle: TextStyle(),
-            ),
-            series: <CartesianSeries>[
-              ColumnSeries<Map<String, dynamic>, String>(
-                name: 'Distribution température',
-                dataSource: [
-                  {'range': '<0°C', 'count': analyticsData.where((bin) => bin['temperature'] != null && bin['temperature'] < 0).length},
-                  {'range': '0-10°C', 'count': analyticsData.where((bin) => bin['temperature'] != null && bin['temperature'] >= 0 && bin['temperature'] < 10).length},
-                  {'range': '10-20°C', 'count': analyticsData.where((bin) => bin['temperature'] != null && bin['temperature'] >= 10 && bin['temperature'] < 20).length},
-                  {'range': '20-30°C', 'count': analyticsData.where((bin) => bin['temperature'] != null && bin['temperature'] >= 20 && bin['temperature'] < 30).length},
-                  {'range': '>30°C', 'count': analyticsData.where((bin) => bin['temperature'] != null && bin['temperature'] >= 30).length},
-                ],
-                xValueMapper: (data, _) => data['range'],
-                yValueMapper: (data, _) => data['count'],
-                color: const Color(0xFF9b59b6),
-                dataLabelSettings: const DataLabelSettings(
-                  isVisible: true,
-                  textStyle: TextStyle(),
-                ),
+              SplineSeries<dynamic, String>(
+                dataSource: analyticsData, 
+                xValueMapper: (d, _) => d['name'], 
+                yValueMapper: (d, _) => d['humidity'], 
+                name: 'Hum', 
+                yAxisName: 'H', 
+                color: _kMid, 
+                width: 4,
+                markerSettings: const MarkerSettings(isVisible: true, borderWidth: 2, borderColor: Colors.white),
+                dataLabelSettings: const DataLabelSettings(isVisible: true, textStyle: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: _kMid)),
               ),
             ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildChartCard(
-          title: 'Niveaux d\'humidité',
-          chart: SfCartesianChart(
-            primaryXAxis: CategoryAxis(
-              labelStyle: const TextStyle(),
-            ),
-            primaryYAxis: NumericAxis(
-              minimum: 0,
-              maximum: 100,
-              labelStyle: const TextStyle(),
-            ),
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.bottom,
-              textStyle: TextStyle(),
-            ),
-            series: <CartesianSeries>[
-              ColumnSeries<dynamic, String>(
-                name: 'Niveau d\'humidité',// <-- Add this
-                dataSource: analyticsData,
-                xValueMapper: (data, _) => data['name'],
-                yValueMapper: (data, _) => data['humidity'],
-                color: const Color(0xFF1abc9c),
-                dataLabelSettings: const DataLabelSettings(
-                  isVisible: true,
-                  textStyle: TextStyle(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildChartCard(
-          title: 'Corrélation Temp/Humidité',
-          chart: SfCartesianChart(
-            primaryXAxis: NumericAxis(
-              title: AxisTitle(text: 'Température (°C)', textStyle: const TextStyle(color: Color(0xFF9b59b6))),
-              labelStyle: const TextStyle(),
-            ),
-            primaryYAxis: NumericAxis(
-              title: AxisTitle(text: 'Humidité (%)', textStyle: const TextStyle(color: Color(0xFF3498db))),
-              minimum: 0,
-              maximum: 100,
-              labelStyle: const TextStyle(),
-            ),
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.bottom,
-              textStyle: TextStyle(),
-            ),
-            series: <CartesianSeries>[
-              ScatterSeries<dynamic, num>(
-                name: 'Température vs Humidité',// <-- Add this
-                dataSource: analyticsData,
-                xValueMapper: (data, _) => data['temperature'],
-                yValueMapper: (data, _) => data['humidity'],
-                color: const Color(0xFF9b59b6),
-                markerSettings: const MarkerSettings(isVisible: true, height: 8, width: 8),
-                dataLabelMapper: (data, _) => data['name'],
-                dataLabelSettings: const DataLabelSettings(isVisible: false),
-              ),
-            ],
-            tooltipBehavior: TooltipBehavior(
-              enable: true,
-              builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
-                return Container(
-                  padding: const EdgeInsets.all(8),
-                  child: Text(
-                    '${data['name']}\nTempérature: ${point.x}°C\nHumidité: ${point.y}%',
-                    style: const TextStyle(),
-                  ),
-                );
-              },
-            ),
           ),
         ),
       ],
@@ -616,133 +448,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildTrashTypesTab() {
+    final types = _countTrashTypes();
     return Column(
       children: [
         _buildChartCard(
-          title: 'Types de déchets',
+          title: 'Répartition par Type',
           chart: SfCircularChart(
+            legend: const Legend(
+              isVisible: true, 
+              position: LegendPosition.bottom,
+              textStyle: TextStyle(color: _kTextDark, fontWeight: FontWeight.w700, fontSize: 12),
+            ),
             series: <CircularSeries>[
               PieSeries<Map<String, dynamic>, String>(
-                dataSource: _countTrashTypes(),
-                xValueMapper: (data, _) => data['type'],
-                yValueMapper: (data, _) => data['count'],
-                dataLabelSettings: const DataLabelSettings(
-                  isVisible: true,
-                  textStyle: TextStyle(),
-                ),
-                pointColorMapper: (data, index) {
+                dataSource: types,
+                xValueMapper: (d, _) => d['type'],
+                yValueMapper: (d, _) => d['count'],
+                explode: true,
+                explodeOffset: '10%',
+                pointColorMapper: (d, i) {
+                  // Palette plus contrastée et variée
                   final colors = [
-                    const Color(0xFF9b59b6),
-                    const Color(0xFF3498db),
-                    const Color(0xFF2ecc71),
-                    const Color(0xFFf39c12),
-                    const Color(0xFFe74c3c),
-                    const Color(0xFF1abc9c),
+                    _kPrimary, 
+                    const Color(0xFFD35400), // Orange
+                    const Color(0xFF2E86C1), // Bleu pro
+                    _kMid, 
+                    const Color(0xFF8E44AD), // Violet
+                    const Color(0xFFF1C40F), // Jaune
                   ];
-                  return colors[index % colors.length];
+                  return colors[i % colors.length];
                 },
-              ),
-            ],
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.bottom,
-              textStyle: TextStyle(),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildChartCard(
-          title: 'Poids moyen par type',
-          chart: SfCircularChart(
-            series: <CircularSeries>[
-              PieSeries<Map<String, dynamic>, String>(
-                dataSource: _calculateAverageWeightByType(),
-                xValueMapper: (data, _) => data['type'],
-                yValueMapper: (data, _) => data['avgWeight'],
                 dataLabelSettings: const DataLabelSettings(
                   isVisible: true,
-                  textStyle: TextStyle(),
-                ),
-                pointColorMapper: (data, index) {
-                  final colors = [
-                    const Color(0xFF9b59b6),
-                    const Color(0xFF3498db),
-                    const Color(0xFF2ecc71),
-                    const Color(0xFFf39c12),
-                    const Color(0xFFe74c3c),
-                    const Color(0xFF1abc9c),
-                  ];
-                  return colors[index % colors.length];
-                },
-              ),
-            ],
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.bottom,
-              textStyle: TextStyle(),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildChartCard(
-          title: 'Répartition par volume',
-          chart: SfCartesianChart(
-            primaryXAxis: CategoryAxis(
-              labelStyle: const TextStyle(),
-            ),
-            primaryYAxis: NumericAxis(
-              labelStyle: const TextStyle(),
-            ),
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.bottom,
-              textStyle: TextStyle(),
-            ),
-            series: <CartesianSeries>[
-              ColumnSeries<Map<String, dynamic>, String>(
-                name: 'Volume moyen',
-                dataSource: _calculateAverageVolumeByType(),
-                xValueMapper: (data, _) => data['type'],
-                yValueMapper: (data, _) => data['avgVolume'],
-                color: const Color(0xFF9b59b6),
-                dataLabelSettings: const DataLabelSettings(
-                  isVisible: true,
-                  textStyle: TextStyle(),
+                  textStyle: TextStyle(color: _kTextDark, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildChartCard(
-          title: 'Localisation par type',
-          chart: SfCartesianChart(
-            primaryXAxis: NumericAxis(
-              title: AxisTitle(text: 'Longitude', textStyle: const TextStyle(color: Color(0xFF9b59b6))),
-              labelStyle: const TextStyle(),
-            ),
-            primaryYAxis: NumericAxis(
-              title: AxisTitle(text: 'Latitude', textStyle: const TextStyle(color: Color(0xFF3498db))),
-              labelStyle: const TextStyle(),
-            ),
-            series: _buildTrashTypeLocationSeries(),
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.bottom,
-              textStyle: TextStyle(),
-            ),
-            tooltipBehavior: TooltipBehavior(
-              enable: true,
-              builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
-                return Container(
-                  padding: const EdgeInsets.all(8),
-                  child: Text(
-                    '${data['name']}\nType: ${series.name}\nPosition: ${point.y.toStringAsFixed(4)}°N, ${point.x.toStringAsFixed(4)}°E',
-                    style: const TextStyle(),
-                  ),
-                );
-              },
-            ),
           ),
         ),
       ],
@@ -753,157 +494,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Column(
       children: [
         _buildChartCard(
-          title: 'Niveaux de gaz',
+          title: 'Niveaux de Gaz (MQ-135)',
           chart: SfCartesianChart(
-            primaryXAxis: CategoryAxis(
-              labelStyle: const TextStyle(),
-            ),
-            primaryYAxis: NumericAxis(
-              labelStyle: const TextStyle(),
-            ),
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.bottom,
-              textStyle: TextStyle(),
-            ),
+            plotAreaBorderWidth: 0,
+            primaryXAxis: CategoryAxis(majorGridLines: const MajorGridLines(width: 0)),
             series: <CartesianSeries>[
-              ColumnSeries<dynamic, String>(
-                name: 'Niveau de gaz',// <-- Add this
+              AreaSeries<dynamic, String>(
                 dataSource: analyticsData,
-                xValueMapper: (data, _) => data['name'],
-                yValueMapper: (data, _) => data['gaz_level'],
-                color: const Color(0xFFf39c12),
-                dataLabelSettings: const DataLabelSettings(
-                  isVisible: true,
-                  textStyle: TextStyle(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildChartCard(
-          title: 'Remplissage vs Gaz',
-          chart: SfCartesianChart(
-            primaryXAxis: NumericAxis(
-              title: AxisTitle(text: 'Remplissage (%)', textStyle: const TextStyle(color: Color(0xFF9b59b6))),
-              minimum: 0,
-              maximum: 100,
-              labelStyle: const TextStyle(),
-            ),
-            primaryYAxis: NumericAxis(
-              title: AxisTitle(text: 'Niveau de Gaz (%)', textStyle: const TextStyle(color: Color(0xFF3498db))),
-              labelStyle: const TextStyle(),
-            ),
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.bottom,
-              textStyle: TextStyle(),
-            ),
-            series: <CartesianSeries>[
-              ScatterSeries<dynamic, num>(
-                name: 'Remplissage vs Gaz',// <-- Add this
-                dataSource: analyticsData,
-                xValueMapper: (data, _) => data['trash_level'],
-                yValueMapper: (data, _) => data['gaz_level'],
-                pointColorMapper: (data, _) {
-                  if ((data['trash_level'] != null && data['trash_level'] >= 80) && (data['gaz_level'] != null && data['gaz_level'] >= 10)) return const Color(0xFFe74c3c);
-                  if (data['trash_level'] != null && data['trash_level'] >= 80) return const Color(0xFFf39c12);
-                  if (data['gaz_level'] != null && data['gaz_level'] >= 10) return const Color(0xFF1abc9c);
-                  return const Color(0xFF2ecc71);
-                },
-                markerSettings: const MarkerSettings(isVisible: true, height: 8, width: 8),
-                dataLabelMapper: (data, _) => data['name'],
-                dataLabelSettings: const DataLabelSettings(isVisible: false),
-              ),
-            ],
-            tooltipBehavior: TooltipBehavior(
-              enable: true,
-              builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
-                return Container(
-                  padding: const EdgeInsets.all(8),
-                  child: Text(
-                    '${data['name']}\nRemplissage: ${point.x}%\nGaz: ${point.y}%',
-                    style: const TextStyle(),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildChartCard(
-          title: 'Gaz vs Température',
-          chart: SfCartesianChart(
-            primaryXAxis: NumericAxis(
-              title: AxisTitle(text: 'Température (°C)', textStyle: const TextStyle(color: Color(0xFF9b59b6))),
-              labelStyle: const TextStyle(),
-            ),
-            primaryYAxis: NumericAxis(
-              title: AxisTitle(text: 'Niveau de Gaz (%)', textStyle: const TextStyle(color: Color(0xFF3498db))),
-              labelStyle: const TextStyle(),
-            ),
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.bottom,
-              textStyle: TextStyle(),
-            ),
-            series: <CartesianSeries>[
-              ScatterSeries<dynamic, num>(
-                name: 'Gaz vs Température',// <-- Add this
-                dataSource: analyticsData,
-                xValueMapper: (data, _) => data['temperature'],
-                yValueMapper: (data, _) => data['gaz_level'],
-                pointColorMapper: (data, _) => 
-                  (data['gaz_level'] != null && data['gaz_level'] >= 10) ? const Color(0xFFf39c12) : const Color(0xFF2ecc71),
-                markerSettings: const MarkerSettings(isVisible: true, height: 8, width: 8),
-                dataLabelMapper: (data, _) => data['name'],
-                dataLabelSettings: const DataLabelSettings(isVisible: false),
-              ),
-            ],
-            tooltipBehavior: TooltipBehavior(
-              enable: true,
-              builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
-                return Container(
-                  padding: const EdgeInsets.all(8),
-                  child: Text(
-                    '${data['name']}\nTempérature: ${point.x}°C\nGaz: ${point.y}%',
-                    style: const TextStyle(),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildChartCard(
-          title: 'Alertes gaz critiques',
-          chart: SfCartesianChart(
-            primaryXAxis: CategoryAxis(
-              labelStyle: const TextStyle(),
-            ),
-            primaryYAxis: NumericAxis(
-              minimum: 0,
-              maximum: 100,
-              labelStyle: const TextStyle(),
-            ),
-            legend: const Legend(
-              isVisible: true,
-              position: LegendPosition.bottom,
-              textStyle: TextStyle(),
-            ),
-            series: <CartesianSeries>[
-              ColumnSeries<dynamic, String>(
-                name: 'Gaz critique',// <-- Add this
-                dataSource: analyticsData.where((bin) => bin['gaz_level'] != null && bin['gaz_level'] >= 10).toList(),
-                xValueMapper: (data, _) => data['name'],
-                yValueMapper: (data, _) => data['gaz_level'],
-                pointColorMapper: (data, _) => 
-                  (data['gaz_level'] != null && data['gaz_level'] > 20) ? const Color(0xFFe74c3c) : const Color(0xFFf39c12),
-                dataLabelSettings: const DataLabelSettings(
-                  isVisible: true,
-                  textStyle: TextStyle(),
-                ),
+                xValueMapper: (d, _) => d['name'],
+                yValueMapper: (d, _) => d['gaz_level'],
+                color: _kAlert.withOpacity(0.2),
+                borderColor: _kAlert,
+                borderWidth: 2,
               ),
             ],
           ),
@@ -913,18 +515,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildChartCard({required String title, required Widget chart}) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Text(title, 
-              style: TextStyle(fontSize: 18, color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            SizedBox(height: 300, child: chart),
-          ],
-        ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _kBorder.withOpacity(0.4)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.015), blurRadius: 10, offset: const Offset(0, 5))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title.toUpperCase(), style: const TextStyle(fontSize: 13, color: _kPrimary, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
+          const SizedBox(height: 20),
+          SizedBox(height: 280, child: chart),
+        ],
       ),
     );
   }

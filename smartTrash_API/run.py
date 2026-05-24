@@ -28,6 +28,8 @@ from routers.prediction import router as prediction_router
 from routers.report import router as report_router
 from routers.bins import router as bins_router
 from routers.chatbot import router as chatbot_router
+from routers.rewards import router as rewards_router
+from routers.deposit_event import router as deposit_event_router
 
 # --- Firebase Setup ---
 def initialize_firebase():
@@ -229,6 +231,12 @@ app.include_router(bins_router)
 
 # --- Include chatbot endpoints ---
 app.include_router(chatbot_router)
+
+# --- Include rewards / gamification endpoints ---
+app.include_router(rewards_router)
+
+# --- Include deposit close-event endpoint (for ESP32) ---
+app.include_router(deposit_event_router)
 
 
 if __name__ == "__main__":
